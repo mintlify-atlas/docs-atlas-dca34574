@@ -1,0 +1,256 @@
+---
+title: Fetch server
+description: Web content fetching and conversion to markdown for LLMs
+---
+
+# Fetch server
+
+The Fetch MCP server provides web content fetching capabilities, enabling Large Language Models to retrieve and process content from web pages. It automatically converts HTML to markdown for easier consumption by LLMs.
+
+<Warning>
+This server can access local/internal IP addresses and may represent a security risk. Exercise caution when using this server to ensure it does not expose any sensitive data.
+</Warning>
+
+## Features
+
+- Fetch web content and convert to markdown
+- Chunked reading with start index for large pages
+- Optional raw HTML retrieval
+- Configurable content length limits
+- Respects robots.txt by default
+- Custom user-agent support
+- Proxy configuration
+
+## Tools
+
+### fetch
+
+Fetches a URL from the internet and extracts its contents as markdown.
+
+<ParamField path="url" type="string" required>
+  URL to fetch
+</ParamField>
+
+<ParamField path="max_length" type="integer">
+  Maximum number of characters to return (default: 5000)
+</ParamField>
+
+<ParamField path="start_index" type="integer">
+  Start content from this character index (default: 0). Use this to read large webpages in chunks.
+</ParamField>
+
+<ParamField path="raw" type="boolean">
+  Get raw content without markdown conversion (default: false)
+</ParamField>
+
+## Installation
+
+<Tabs>
+  <Tab title="uvx (recommended)">
+    No installation needed. Use `uvx` to run directly:
+
+    ```bash
+    uvx mcp-server-fetch
+    ```
+  </Tab>
+  <Tab title="pip">
+    ```bash
+    pip install mcp-server-fetch
+    ```
+
+    Run the server:
+    ```bash
+    python -m mcp_server_fetch
+    ```
+  </Tab>
+  <Tab title="Docker">
+    ```bash
+    docker pull mcp/fetch
+    docker run -i --rm mcp/fetch
+    ```
+  </Tab>
+</Tabs>
+
+## Configuration
+
+### Claude Desktop
+
+<CodeGroup>
+```json uvx
+{
+  "mcpServers": {
+    "fetch": {
+      "command": "uvx",
+      "args": ["mcp-server-fetch"]
+    }
+  }
+}
+```
+
+```json Docker
+{
+  "mcpServers": {
+    "fetch": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "mcp/fetch"]
+    }
+  }
+}
+```
+
+```json pip
+{
+  "mcpServers": {
+    "fetch": {
+      "command": "python",
+      "args": ["-m", "mcp_server_fetch"]
+    }
+  }
+}
+```
+</CodeGroup>
+
+### VS Code
+
+<CodeGroup>
+```json uvx
+{
+  "mcp": {
+    "servers": {
+      "fetch": {
+        "command": "uvx",
+        "args": ["mcp-server-fetch"]
+      }
+    }
+  }
+}
+```
+
+```json Docker
+{
+  "mcp": {
+    "servers": {
+      "fetch": {
+        "command": "docker",
+        "args": ["run", "-i", "--rm", "mcp/fetch"]
+      }
+    }
+  }
+}
+```
+</CodeGroup>
+
+## Customization
+
+### Robots.txt handling
+
+By default, the server obeys a website's robots.txt file for model-initiated requests (via tools) but not for user-initiated requests (via prompts). Disable this behavior:
+
+```json
+{
+  "command": "uvx",
+  "args": ["mcp-server-fetch", "--ignore-robots-txt"]
+}
+```
+
+### User agent
+
+The server uses different user agents based on request origin:
+
+- **Model-initiated**: `ModelContextProtocol/1.0 (Autonomous; +https://github.com/modelcontextprotocol/servers)`
+- **User-initiated**: `ModelContextProtocol/1.0 (User-Specified; +https://github.com/modelcontextprotocol/servers)`
+
+Customize the user agent:
+
+```json
+{
+  "command": "uvx",
+  "args": ["mcp-server-fetch", "--user-agent=YourUserAgent"]
+}
+```
+
+### Proxy configuration
+
+Configure a proxy server:
+
+```json
+{
+  "command": "uvx",
+  "args": ["mcp-server-fetch", "--proxy-url=http://proxy.example.com:8080"]
+}
+```
+
+## Windows configuration
+
+If experiencing timeout issues on Windows, set the `PYTHONIOENCODING` environment variable:
+
+<CodeGroup>
+```json uvx
+{
+  "mcpServers": {
+    "fetch": {
+      "command": "uvx",
+      "args": ["mcp-server-fetch"],
+      "env": {
+        "PYTHONIOENCODING": "utf-8"
+      }
+    }
+  }
+}
+```
+
+```json pip
+{
+  "mcpServers": {
+    "fetch": {
+      "command": "python",
+      "args": ["-m", "mcp_server_fetch"],
+      "env": {
+        "PYTHONIOENCODING": "utf-8"
+      }
+    }
+  }
+}
+```
+</CodeGroup>
+
+## Usage examples
+
+### Fetch a webpage
+
+```
+Fetch the contents of https://example.com
+```
+
+The server will retrieve the page and convert it to markdown.
+
+### Read a large page in chunks
+
+```
+Fetch https://example.com/long-article starting from character 5000
+```
+
+Use the `start_index` parameter to continue reading from where you left off.
+
+### Get raw HTML
+
+```
+Fetch the raw HTML of https://example.com
+```
+
+Set `raw: true` to get the unprocessed HTML content.
+
+## Debugging
+
+Use the MCP inspector to debug the server:
+
+```bash
+npx @modelcontextprotocol/inspector uvx mcp-server-fetch
+```
+
+Or for local development:
+
+```bash
+cd path/to/servers/src/fetch
+npx @modelcontextprotocol/inspector uv run mcp-server-fetch
+```

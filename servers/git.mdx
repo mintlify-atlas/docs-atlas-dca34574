@@ -1,0 +1,405 @@
+---
+title: Git server
+description: Git repository interaction and automation for LLMs
+---
+
+# Git server
+
+The Git MCP server provides tools to read, search, and manipulate Git repositories. This server enables Large Language Models to interact with version control systems, view diffs, manage branches, and commit changes.
+
+<Note>
+This server is in early development. Functionality and available tools are subject to change and expansion.
+</Note>
+
+## Features
+
+- View repository status and changes
+- Compare branches and commits
+- Stage and commit changes
+- Create and switch branches
+- View commit history with date filtering
+- Show commit contents
+- List and filter branches
+
+## Tools
+
+### git_status
+
+Shows the working tree status.
+
+<ParamField path="repo_path" type="string" required>
+  Path to Git repository
+</ParamField>
+
+### git_diff_unstaged
+
+Shows changes in the working directory not yet staged.
+
+<ParamField path="repo_path" type="string" required>
+  Path to Git repository
+</ParamField>
+
+<ParamField path="context_lines" type="number">
+  Number of context lines to show (default: 3)
+</ParamField>
+
+### git_diff_staged
+
+Shows changes that are staged for commit.
+
+<ParamField path="repo_path" type="string" required>
+  Path to Git repository
+</ParamField>
+
+<ParamField path="context_lines" type="number">
+  Number of context lines to show (default: 3)
+</ParamField>
+
+### git_diff
+
+Shows differences between branches or commits.
+
+<ParamField path="repo_path" type="string" required>
+  Path to Git repository
+</ParamField>
+
+<ParamField path="target" type="string" required>
+  Target branch or commit to compare with
+</ParamField>
+
+<ParamField path="context_lines" type="number">
+  Number of context lines to show (default: 3)
+</ParamField>
+
+### git_commit
+
+Records changes to the repository.
+
+<ParamField path="repo_path" type="string" required>
+  Path to Git repository
+</ParamField>
+
+<ParamField path="message" type="string" required>
+  Commit message
+</ParamField>
+
+### git_add
+
+Adds file contents to the staging area.
+
+<ParamField path="repo_path" type="string" required>
+  Path to Git repository
+</ParamField>
+
+<ParamField path="files" type="string[]" required>
+  Array of file paths to stage
+</ParamField>
+
+### git_reset
+
+Unstages all staged changes.
+
+<ParamField path="repo_path" type="string" required>
+  Path to Git repository
+</ParamField>
+
+### git_log
+
+Shows the commit logs with optional date filtering.
+
+<ParamField path="repo_path" type="string" required>
+  Path to Git repository
+</ParamField>
+
+<ParamField path="max_count" type="number">
+  Maximum number of commits to show (default: 10)
+</ParamField>
+
+<ParamField path="start_timestamp" type="string">
+  Start timestamp for filtering commits. Accepts ISO 8601 format (e.g., '2024-01-15T14:30:25'), relative dates (e.g., '2 weeks ago', 'yesterday'), or absolute dates (e.g., '2024-01-15', 'Jan 15 2024')
+</ParamField>
+
+<ParamField path="end_timestamp" type="string">
+  End timestamp for filtering commits. Same formats as start_timestamp
+</ParamField>
+
+### git_create_branch
+
+Creates a new branch.
+
+<ParamField path="repo_path" type="string" required>
+  Path to Git repository
+</ParamField>
+
+<ParamField path="branch_name" type="string" required>
+  Name of the new branch
+</ParamField>
+
+<ParamField path="base_branch" type="string">
+  Base branch to create from (defaults to current branch)
+</ParamField>
+
+### git_checkout
+
+Switches branches.
+
+<ParamField path="repo_path" type="string" required>
+  Path to Git repository
+</ParamField>
+
+<ParamField path="branch_name" type="string" required>
+  Name of branch to checkout
+</ParamField>
+
+### git_show
+
+Shows the contents of a commit.
+
+<ParamField path="repo_path" type="string" required>
+  Path to Git repository
+</ParamField>
+
+<ParamField path="revision" type="string" required>
+  The revision (commit hash, branch name, tag) to show
+</ParamField>
+
+### git_branch
+
+Lists Git branches.
+
+<ParamField path="repo_path" type="string" required>
+  Path to the Git repository
+</ParamField>
+
+<ParamField path="branch_type" type="string" required>
+  Whether to list local branches ('local'), remote branches ('remote'), or all branches ('all')
+</ParamField>
+
+<ParamField path="contains" type="string">
+  The commit sha that branch should contain. Leave empty if not filtering by commit.
+</ParamField>
+
+<ParamField path="not_contains" type="string">
+  The commit sha that branch should NOT contain. Leave empty if not filtering.
+</ParamField>
+
+## Installation
+
+<Tabs>
+  <Tab title="uvx (recommended)">
+    No installation needed. Use `uvx` to run directly:
+
+    ```bash
+    uvx mcp-server-git
+    ```
+  </Tab>
+  <Tab title="pip">
+    ```bash
+    pip install mcp-server-git
+    ```
+
+    Run the server:
+    ```bash
+    python -m mcp_server_git
+    ```
+  </Tab>
+  <Tab title="Docker">
+    ```bash
+    docker pull mcp/git
+    docker run --rm -i --mount type=bind,src=/path/to/repo,dst=/repo mcp/git
+    ```
+  </Tab>
+</Tabs>
+
+## Configuration
+
+### Claude Desktop
+
+<CodeGroup>
+```json uvx
+{
+  "mcpServers": {
+    "git": {
+      "command": "uvx",
+      "args": ["mcp-server-git", "--repository", "path/to/git/repo"]
+    }
+  }
+}
+```
+
+```json Docker
+{
+  "mcpServers": {
+    "git": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "--mount", "type=bind,src=/Users/username,dst=/Users/username",
+        "mcp/git"
+      ]
+    }
+  }
+}
+```
+
+```json pip
+{
+  "mcpServers": {
+    "git": {
+      "command": "python",
+      "args": ["-m", "mcp_server_git", "--repository", "path/to/git/repo"]
+    }
+  }
+}
+```
+</CodeGroup>
+
+<Note>
+Replace `/Users/username` or `path/to/git/repo` with the actual path to your Git repository.
+</Note>
+
+### VS Code
+
+<CodeGroup>
+```json uvx
+{
+  "mcp": {
+    "servers": {
+      "git": {
+        "command": "uvx",
+        "args": ["mcp-server-git"]
+      }
+    }
+  }
+}
+```
+
+```json Docker
+{
+  "mcp": {
+    "servers": {
+      "git": {
+        "command": "docker",
+        "args": [
+          "run",
+          "--rm",
+          "-i",
+          "--mount", "type=bind,src=${workspaceFolder},dst=/workspace",
+          "mcp/git"
+        ]
+      }
+    }
+  }
+}
+```
+</CodeGroup>
+
+### Zed
+
+<CodeGroup>
+```json uvx
+{
+  "context_servers": {
+    "mcp-server-git": {
+      "command": {
+        "path": "uvx",
+        "args": ["mcp-server-git"]
+      }
+    }
+  }
+}
+```
+
+```json pip
+{
+  "context_servers": {
+    "mcp-server-git": {
+      "command": {
+        "path": "python",
+        "args": ["-m", "mcp_server_git"]
+      }
+    }
+  }
+}
+```
+</CodeGroup>
+
+## Usage examples
+
+### Check repository status
+
+```
+Show me the status of the repository at /path/to/repo
+```
+
+### View uncommitted changes
+
+```
+Show me the unstaged changes in /path/to/repo
+```
+
+### Create a feature branch
+
+```
+Create a new branch called feature/new-feature in /path/to/repo
+```
+
+### Commit changes
+
+```
+Stage all changes and commit them with message "Add new feature" in /path/to/repo
+```
+
+### View commit history
+
+```
+Show me the last 20 commits in /path/to/repo
+```
+
+### Compare branches
+
+```
+Show me the difference between main and develop branches in /path/to/repo
+```
+
+## Docker volume mounting
+
+When using Docker, you need to mount the repository directory to make it accessible:
+
+```bash
+docker run --rm -i \
+  --mount type=bind,src=/Users/username/projects,dst=/projects \
+  mcp/git
+```
+
+You can mount multiple directories or specific files:
+
+```bash
+docker run --rm -i \
+  --mount type=bind,src=/Users/username/Desktop,dst=/projects/Desktop \
+  --mount type=bind,src=/path/to/other/repo,dst=/projects/other/repo,ro \
+  mcp/git
+```
+
+## Debugging
+
+Use the MCP inspector to debug the server:
+
+```bash
+npx @modelcontextprotocol/inspector uvx mcp-server-git
+```
+
+Or for local development:
+
+```bash
+cd path/to/servers/src/git
+npx @modelcontextprotocol/inspector uv run mcp-server-git
+```
+
+View Claude logs on macOS:
+
+```bash
+tail -n 20 -f ~/Library/Logs/Claude/mcp*.log
+```

@@ -50,8 +50,10 @@
             "group": "Reference Servers",
             "pages": [
               "servers/everything",
-              "servers/memory",
+              "servers/fetch",
               "servers/filesystem",
+              "servers/git",
+              "servers/memory",
               "servers/sequential-thinking",
               "servers/time"
             ]
