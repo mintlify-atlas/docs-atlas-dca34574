@@ -1,0 +1,319 @@
+---
+title: 'MikroTik Tools'
+description: 'MikroTik RouterOS API tools and resources for network management'
+---
+
+# MikroTik RouterOS API
+
+A read-only MCP server implementation for interacting with MikroTik routers using the RouterOS API.
+
+## Features
+
+- **Connection Management**: Connect and authenticate with MikroTik routers
+- **Resource Monitoring**: Dynamic access to interfaces, bridges, and routing tables via MCP resources
+- **Protocol Support**: Works with both plain TCP (8728) and secure SSL/TLS (8729)
+- **Modern & Legacy Login**: Supports RouterOS versions prior to and after v6.43
+
+## Tools
+
+### mk-connect
+
+Connects to a MikroTik router and authenticates.
+
+<ParamField path="host" type="string" required>
+  IP address of the MikroTik router
+</ParamField>
+
+<ParamField path="user" type="string" required>
+  Username for authentication
+</ParamField>
+
+<ParamField path="password" type="string" required>
+  Password for authentication
+</ParamField>
+
+<ParamField path="secure" type="boolean" default="false">
+  Use SSL/TLS connection (port 8729 instead of 8728)
+</ParamField>
+
+**Example:**
+```bash
+mk-connect 192.168.88.1 admin mypassword
+```
+
+**Example with SSL:**
+```bash
+mk-connect 192.168.88.1 admin mypassword true
+```
+
+---
+
+### mk-report
+
+Generates a comprehensive system report for the connected router.
+
+<Note>
+No parameters required. Must be connected to a router first using `mk-connect`.
+</Note>
+
+**Output includes:**
+- System resources (CPU, memory, uptime)
+- RouterBoard health information
+- Interface traffic statistics (using `monitor-traffic` once)
+- System configuration summary
+
+**Example:**
+```bash
+mk-report
+```
+
+---
+
+### mk-get
+
+Returns a JSON array with the result of a MikroTik API `/print` command.
+
+<ParamField path="sentence" type="string" required>
+  The API path to query (e.g., `/ip/route`, `/interface`, `/log`)
+</ParamField>
+
+<Note>
+The server automatically ensures the path starts with `/` and ends with `/print`.
+</Note>
+
+**Example - Get routing table:**
+```bash
+mk-get /ip/route
+```
+
+**Example - Get interfaces:**
+```bash
+mk-get /interface
+```
+
+**Example - Get system logs:**
+```bash
+mk-get /log
+```
+
+**Example - Get firewall rules:**
+```bash
+mk-get /ip/firewall/filter
+```
+
+**Common API paths:**
+- `/interface` - Network interfaces
+- `/ip/address` - IP addresses
+- `/ip/route` - Routing table
+- `/ip/route/rule` - Routing rules
+- `/ip/firewall/address-list` - Firewall address lists
+- `/ip/firewall/filter` - Firewall filter rules
+- `/ip/firewall/nat` - NAT rules
+- `/ip/firewall/mangle` - Mangle rules
+- `/log` - System logs
+
+---
+
+### mk-awr
+
+Generates an Automatic Workload Repository (AWR) style report for MikroTik routers.
+
+<Note>
+No parameters required. Must be connected to a router first using `mk-connect`.
+</Note>
+
+**Report includes:**
+- Performance metrics and statistics
+- Security audit findings
+- Configuration analysis
+- Optimization recommendations
+- Unused entity detection
+
+**Example:**
+```bash
+mk-awr
+```
+
+<Warning>
+The AWR report analyzes firewall rules, routing configuration, and system settings to identify potential security risks and optimization opportunities.
+</Warning>
+
+## Resources
+
+MikroTik entities are exposed as MCP resources for direct inspection:
+
+### Interfaces
+
+**URI Format:** `mikrotik://interface/{name}`
+
+Access detailed information about a specific network interface.
+
+**Example:**
+```
+mikrotik://interface/ether1
+mikrotik://interface/wlan1
+```
+
+---
+
+### Bridges
+
+**URI Format:** `mikrotik://bridge/{name}`
+
+Access bridge configuration and status.
+
+**Example:**
+```
+mikrotik://bridge/bridge1
+```
+
+---
+
+### Bridge Ports
+
+**URI Format:** `mikrotik://bridge/{bridge_name}/{interface_name}`
+
+Access information about an interface that is part of a bridge.
+
+**Example:**
+```
+mikrotik://bridge/bridge1/ether2
+mikrotik://bridge/bridge1/ether3
+```
+
+---
+
+### IP Routes
+
+**URI Format:** `mikrotik://route/{id}`
+
+Access routing table entries by their internal ID.
+
+<Note>
+Internal IDs are used for routing entries. Use `mk-get /ip/route` to discover route IDs.
+</Note>
+
+**Example:**
+```
+mikrotik://route/400AF317
+```
+
+## Configuration
+
+### Environment Variables
+
+<ParamField path="MK_USER" type="string">
+  MikroTik username (required if providing host at startup)
+</ParamField>
+
+<ParamField path="MK_PASSWORD" type="string">
+  MikroTik password (required if providing host at startup)
+</ParamField>
+
+### Startup Arguments
+
+1. `host` (optional): IP address of the router
+2. `secure` (optional): Use SSL/TLS (default: `false`)
+
+If startup arguments are provided, the server attempts to connect automatically using `MK_USER` and `MK_PASSWORD` environment variables.
+
+### Usage with Claude Desktop
+
+**NPX Installation:**
+
+```json
+{
+  "mcpServers": {
+    "mikrotik": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@marcelo-ochoa/server-mikrotik",
+        "192.168.88.1"
+      ],
+      "env": {
+        "MK_USER": "ai_agent",
+        "MK_PASSWORD": "ai_password"
+      }
+    }
+  }
+}
+```
+
+**Docker Installation:**
+
+```json
+{
+  "mcpServers": {
+    "mikrotik": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "MK_USER=admin",
+        "-e",
+        "MK_PASSWORD=password",
+        "mochoa/mcp-mikrotik",
+        "192.168.88.1",
+        "false"
+      ]
+    }
+  }
+}
+```
+
+<Note>
+Arguments and environment variables are optional. You can connect later using `mk-connect`.
+</Note>
+
+## Use Cases
+
+### Security Audit
+
+Use `mk-get` to retrieve configuration data and analyze it for security risks:
+
+```bash
+# Get firewall configuration
+mk-get /ip/firewall/filter
+mk-get /ip/firewall/nat
+mk-get /ip/firewall/address-list
+
+# Get routing configuration
+mk-get /ip/route
+mk-get /ip/route/rule
+
+# Analyze for unused entities and potential risks
+mk-awr
+```
+
+### Network Monitoring
+
+Monitor router health and performance:
+
+```bash
+# Get comprehensive system report
+mk-report
+
+# Check specific interfaces
+mk-get /interface
+
+# Review system logs
+mk-get /log
+```
+
+### Performance Analysis
+
+Generate an AWR-style report for detailed performance insights:
+
+```bash
+mk-awr
+```
+
+The AWR report identifies:
+- High CPU/memory usage patterns
+- Inefficient firewall rules
+- Routing inefficiencies
+- Security vulnerabilities
+- Unused configuration entities

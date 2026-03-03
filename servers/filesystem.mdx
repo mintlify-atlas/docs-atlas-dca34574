@@ -1,0 +1,303 @@
+---
+title: Filesystem
+description: Secure filesystem operations with dynamic directory access control via MCP Roots protocol
+---
+
+The Filesystem server provides comprehensive file and directory operations with flexible access control through command-line arguments or the MCP Roots protocol.
+
+## Overview
+
+This server enables read/write file operations, directory management, file search, and metadata retrieval with dynamic directory access control. It supports both static configuration and runtime directory updates.
+
+## Features
+
+- Read and write files (text and media)
+- Create, list, and delete directories
+- Move and rename files/directories
+- Search files with glob patterns
+- Get file metadata
+- Directory tree visualization
+- Dynamic access control via MCP Roots protocol
+
+## Installation
+
+### NPX
+
+```bash
+npx -y @modelcontextprotocol/server-filesystem <allowed-directory-path>
+```
+
+### Docker
+
+```bash
+docker run -i --rm \
+  --mount type=bind,src=/path/to/allowed/dir,dst=/projects/allowed/dir \
+  mcp/filesystem /projects
+```
+
+## Directory Access Control
+
+The server uses a flexible access control system supporting two methods:
+
+### Method 1: Command-line Arguments
+
+Specify allowed directories when starting the server:
+
+```bash
+mcp-server-filesystem /path/to/dir1 /path/to/dir2
+```
+
+### Method 2: MCP Roots (Recommended)
+
+MCP clients that support the Roots protocol can dynamically update allowed directories at runtime. This provides:
+
+- Runtime directory updates via `roots/list_changed` notifications
+- No server restart required
+- More flexible integration
+
+<Info>
+Roots provided by the client completely replace any server-side allowed directories when the client supports the roots protocol.
+</Info>
+
+### Access Control Flow
+
+1. **Server Startup**: Starts with command-line directories (if provided) or empty
+2. **Client Connection**: Client sends capabilities during initialization
+3. **Roots Handling**: If client supports roots, server requests and uses client's roots
+4. **Fallback**: Without roots support, server uses command-line directories
+5. **Enforcement**: All operations restricted to allowed directories
+
+<Note>
+The server requires at least one allowed directory to operate. Use the `list_allowed_directories` tool to view current permissions.
+</Note>
+
+## Configuration
+
+### Claude Desktop
+
+Add to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/Users/username/Desktop",
+        "/path/to/other/allowed/dir"
+      ]
+    }
+  }
+}
+```
+
+### VS Code
+
+Add to your MCP settings (`mcp.json`):
+
+```json
+{
+  "servers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "${workspaceFolder}"
+      ]
+    }
+  }
+}
+```
+
+### Docker with Volume Mounts
+
+```json
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "--mount", "type=bind,src=/Users/username/Desktop,dst=/projects/Desktop",
+        "--mount", "type=bind,src=/path/to/readonly,dst=/projects/readonly,ro",
+        "mcp/filesystem",
+        "/projects"
+      ]
+    }
+  }
+}
+```
+
+<Note>
+When using Docker, mount directories to `/projects` and add the `ro` flag for read-only access.
+</Note>
+
+## Tools
+
+### File Reading
+
+#### read_text_file
+
+Read complete contents of a file as UTF-8 text.
+
+**Inputs:**
+- `path` (string): File path
+- `head` (number, optional): Read first N lines
+- `tail` (number, optional): Read last N lines
+
+#### read_media_file
+
+Read image or audio files as base64-encoded data.
+
+**Input:**
+- `path` (string): Media file path
+
+**Returns:** Base64 data with MIME type
+
+#### read_multiple_files
+
+Read multiple files simultaneously.
+
+**Input:**
+- `paths` (string[]): Array of file paths
+
+### File Writing
+
+#### write_file
+
+Create new file or overwrite existing content.
+
+**Inputs:**
+- `path` (string): File location
+- `content` (string): File content
+
+<Note>
+This operation is destructive and will overwrite existing files without warning.
+</Note>
+
+#### edit_file
+
+Make selective edits using pattern matching.
+
+**Inputs:**
+- `path` (string): File to edit
+- `edits` (array): Edit operations with `oldText` and `newText`
+- `dryRun` (boolean): Preview changes without applying
+
+**Features:**
+- Line-based and multi-line matching
+- Whitespace normalization with indentation preservation
+- Multiple simultaneous edits
+- Git-style diff output
+- Dry run preview mode
+
+**Best Practice:** Always use `dryRun: true` first to preview changes.
+
+### Directory Operations
+
+#### create_directory
+
+Create new directory with parent directories as needed.
+
+**Input:**
+- `path` (string): Directory path
+
+#### list_directory
+
+List directory contents with `[FILE]` or `[DIR]` prefixes.
+
+**Input:**
+- `path` (string): Directory path
+
+#### list_directory_with_sizes
+
+List directory contents with file sizes and statistics.
+
+**Inputs:**
+- `path` (string): Directory path
+- `sortBy` (string, optional): Sort by `name` or `size` (default: `name`)
+
+**Returns:** Detailed listing with total files, directories, and combined size
+
+#### directory_tree
+
+Get recursive JSON tree structure of directory.
+
+**Inputs:**
+- `path` (string): Starting directory
+- `excludePatterns` (string[]): Glob patterns to exclude
+
+**Returns:** JSON array with nested structure
+
+#### move_file
+
+Move or rename files and directories.
+
+**Inputs:**
+- `source` (string): Source path
+- `destination` (string): Destination path
+
+### Search and Metadata
+
+#### search_files
+
+Recursively search for files matching patterns.
+
+**Inputs:**
+- `path` (string): Starting directory
+- `pattern` (string): Glob search pattern
+- `excludePatterns` (string[]): Patterns to exclude
+
+**Returns:** Full paths to matching files
+
+#### get_file_info
+
+Get detailed file or directory metadata.
+
+**Input:**
+- `path` (string): File or directory path
+
+**Returns:** Size, timestamps, type, and permissions
+
+#### list_allowed_directories
+
+List all directories the server can access.
+
+**Returns:** Array of allowed directory paths
+
+## Tool Annotations
+
+The server sets MCP ToolAnnotations to help clients understand operation characteristics:
+
+| Tool | readOnlyHint | idempotentHint | destructiveHint |
+|------|--------------|----------------|------------------|
+| `read_text_file` | `true` | - | - |
+| `read_media_file` | `true` | - | - |
+| `read_multiple_files` | `true` | - | - |
+| `list_directory` | `true` | - | - |
+| `list_directory_with_sizes` | `true` | - | - |
+| `directory_tree` | `true` | - | - |
+| `search_files` | `true` | - | - |
+| `get_file_info` | `true` | - | - |
+| `list_allowed_directories` | `true` | - | - |
+| `create_directory` | `false` | `true` | `false` |
+| `write_file` | `false` | `true` | `true` |
+| `edit_file` | `false` | `false` | `true` |
+| `move_file` | `false` | `false` | `true` |
+
+<Info>
+`idempotentHint` indicates operations safe to retry with the same arguments. `destructiveHint` marks operations that may overwrite or delete data.
+</Info>
+
+## Building
+
+Docker build:
+
+```bash
+docker build -t mcp/filesystem -f src/filesystem/Dockerfile .
+```

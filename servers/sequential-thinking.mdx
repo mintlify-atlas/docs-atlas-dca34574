@@ -1,0 +1,165 @@
+---
+title: Sequential Thinking
+description: Dynamic problem-solving through structured, step-by-step thinking with revision and branching capabilities
+---
+
+The Sequential Thinking server provides a tool for breaking down complex problems into manageable steps with the ability to revise, branch, and dynamically adjust the thinking process.
+
+## Overview
+
+This server enables LLMs to engage in detailed, step-by-step reasoning with support for course correction, alternative solution paths, and dynamic scope adjustment as understanding deepens.
+
+## Features
+
+- Break complex problems into sequential steps
+- Revise and refine thoughts as understanding evolves
+- Branch into alternative reasoning paths
+- Dynamically adjust total thought count
+- Generate and verify solution hypotheses
+- Maintain context across multiple thinking steps
+
+## Installation
+
+### NPX
+
+```bash
+npx -y @modelcontextprotocol/server-sequential-thinking
+```
+
+### Docker
+
+```bash
+docker run --rm -i mcp/sequentialthinking
+```
+
+## Configuration
+
+### Claude Desktop
+
+Add to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "sequential-thinking": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ]
+    }
+  }
+}
+```
+
+To disable thought logging:
+
+```json
+{
+  "mcpServers": {
+    "sequential-thinking": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ],
+      "env": {
+        "DISABLE_THOUGHT_LOGGING": "true"
+      }
+    }
+  }
+}
+```
+
+### VS Code
+
+Add to your MCP settings (`mcp.json`):
+
+```json
+{
+  "servers": {
+    "sequential-thinking": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ]
+    }
+  }
+}
+```
+
+## Tool
+
+### sequential_thinking
+
+Facilitates detailed, step-by-step problem-solving and analysis.
+
+**Inputs:**
+
+- `thought` (string, required): The current thinking step content
+- `nextThoughtNeeded` (boolean, required): Whether another thought step is needed
+- `thoughtNumber` (integer, required): Current thought number in sequence
+- `totalThoughts` (integer, required): Estimated total thoughts needed
+- `isRevision` (boolean, optional): Whether this revises previous thinking
+- `revisesThought` (integer, optional): Which thought number is being reconsidered
+- `branchFromThought` (integer, optional): Thought number where branching occurs
+- `branchId` (string, optional): Identifier for the alternative reasoning branch
+- `needsMoreThoughts` (boolean, optional): Request to extend the thought sequence
+
+## Use Cases
+
+The Sequential Thinking tool excels in scenarios requiring:
+
+- **Complex Problem Decomposition**: Break multi-faceted problems into logical steps
+- **Iterative Planning**: Design solutions with room for revision as constraints emerge
+- **Course-Correcting Analysis**: Adjust reasoning when new information changes direction
+- **Uncertain Scope**: Problems where full complexity isn't clear initially
+- **Context Preservation**: Maintain reasoning chain across extended analysis
+- **Information Filtering**: Separate relevant from irrelevant details systematically
+
+## Example Usage
+
+A typical sequential thinking process:
+
+1. **Initial Thought** (`thoughtNumber: 1, totalThoughts: 5`)
+   - State the problem and initial approach
+
+2. **Exploration** (`thoughtNumber: 2-4`)
+   - Work through the solution step by step
+   - Set `nextThoughtNeeded: true` to continue
+
+3. **Revision** (if needed)
+   - Set `isRevision: true` and `revisesThought: 2`
+   - Correct earlier reasoning based on new insights
+
+4. **Branching** (for alternatives)
+   - Set `branchFromThought: 3` and `branchId: "alternative-a"`
+   - Explore different solution path
+
+5. **Dynamic Extension**
+   - Set `needsMoreThoughts: true` when complexity exceeds estimate
+   - Adjust `totalThoughts` upward as needed
+
+6. **Conclusion** (`thoughtNumber: 5, nextThoughtNeeded: false`)
+   - Synthesize findings and present solution
+
+<Info>
+The tool provides flexibility to adapt the thinking process dynamically rather than committing to a fixed number of steps upfront.
+</Info>
+
+## Environment Variables
+
+- `DISABLE_THOUGHT_LOGGING`: Set to `true` to disable logging of thought information
+
+<Note>
+Disabling thought logging can improve performance but reduces visibility into the reasoning process for debugging.
+</Note>
+
+## Building
+
+Docker build:
+
+```bash
+docker build -t mcp/sequentialthinking -f src/sequentialthinking/Dockerfile .
+```

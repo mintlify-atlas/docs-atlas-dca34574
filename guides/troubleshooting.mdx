@@ -1,0 +1,610 @@
+---
+title: Troubleshooting Guide
+description: Common issues and solutions for MCP server deployment including connection errors, permission problems, and debugging tips
+---
+
+## Connection Issues
+
+### Oracle Connection Errors
+
+<Accordion title="ORA-12170: TNS:Connect timeout occurred">
+  **Cause:** The Oracle server is unreachable or a firewall is blocking the connection.
+  
+  **Solutions:**
+  
+  1. Verify the Oracle server is running:
+     ```bash
+     # Check if Oracle listener is active
+     lsnrctl status
+     ```
+  
+  2. Test network connectivity:
+     ```bash
+     # Test from Docker container
+     docker run --rm -it alpine nc -zv host.docker.internal 1521
+     ```
+  
+  3. Check firewall rules:
+     ```bash
+     # Allow Oracle port
+     sudo ufw allow 1521/tcp
+     ```
+  
+  4. On macOS with Docker, use `host.docker.internal` instead of `localhost`:
+     ```json
+     {
+       "args": ["mochoa/mcp-oracle", "host.docker.internal:1521/freepdb1"]
+     }
+     ```
+</Accordion>
+
+<Accordion title="ORA-12541: TNS:no listener">
+  **Cause:** The Oracle listener is not running or not configured correctly.
+  
+  **Solutions:**
+  
+  1. Start the Oracle listener:
+     ```bash
+     lsnrctl start
+     ```
+  
+  2. Verify listener configuration in `listener.ora`:
+     ```
+     LISTENER =
+       (DESCRIPTION_LIST =
+         (DESCRIPTION =
+           (ADDRESS = (PROTOCOL = TCP)(HOST = 0.0.0.0)(PORT = 1521))
+         )
+       )
+     ```
+  
+  3. Check if the correct port is being used:
+     ```bash
+     lsnrctl status | grep PORT
+     ```
+</Accordion>
+
+<Accordion title="ORA-01017: invalid username/password">
+  **Cause:** Incorrect credentials or user doesn't exist.
+  
+  **Solutions:**
+  
+  1. Verify credentials are correct
+  2. Check if user exists:
+     ```sql
+     SELECT username FROM dba_users WHERE username = 'MCP_READONLY';
+     ```
+  
+  3. Ensure password is set correctly:
+     ```sql
+     ALTER USER mcp_readonly IDENTIFIED BY new_password;
+     ```
+  
+  4. Check environment variables:
+     ```bash
+     docker run -i --rm \
+       -e ORACLE_USER=correct_user \
+       -e ORACLE_PASSWORD=correct_password \
+       mochoa/mcp-oracle
+     ```
+</Accordion>
+
+### MySQL Connection Errors
+
+<Accordion title="ECONNREFUSED: Connection refused">
+  **Cause:** MySQL server is not running or not accessible.
+  
+  **Solutions:**
+  
+  1. Verify MySQL is running:
+     ```bash
+     sudo systemctl status mysql
+     # or
+     sudo service mysql status
+     ```
+  
+  2. Check MySQL is listening on the correct port:
+     ```bash
+     sudo netstat -tlnp | grep 3306
+     ```
+  
+  3. Ensure MySQL is bound to the correct interface in `my.cnf`:
+     ```ini
+     [mysqld]
+     bind-address = 0.0.0.0
+     ```
+  
+  4. Use `host.docker.internal` on macOS/Windows:
+     ```bash
+     docker run -i --rm \
+       -e MYSQL_USER=root \
+       -e MYSQL_PASSWORD=pass \
+       mochoa/mcp-mysql \
+       host.docker.internal:3306/mydb
+     ```
+</Accordion>
+
+<Accordion title="ER_ACCESS_DENIED_ERROR: Access denied for user">
+  **Cause:** Invalid credentials or insufficient host permissions.
+  
+  **Solutions:**
+  
+  1. Verify credentials:
+     ```bash
+     mysql -u mcp_readonly -p -h localhost
+     ```
+  
+  2. Check user host permissions:
+     ```sql
+     SELECT user, host FROM mysql.user WHERE user = 'mcp_readonly';
+     ```
+  
+  3. Grant access from Docker network:
+     ```sql
+     CREATE USER 'mcp_readonly'@'%' IDENTIFIED BY 'password';
+     GRANT SELECT ON mydb.* TO 'mcp_readonly'@'%';
+     FLUSH PRIVILEGES;
+     ```
+  
+  4. Verify environment variables are set correctly:
+     ```json
+     {
+       "env": {
+         "MYSQL_USER": "mcp_readonly",
+         "MYSQL_PASSWORD": "correct_password"
+       }
+     }
+     ```
+</Accordion>
+
+<Accordion title="ER_BAD_DB_ERROR: Unknown database">
+  **Cause:** The specified database doesn't exist.
+  
+  **Solutions:**
+  
+  1. List available databases:
+     ```sql
+     SHOW DATABASES;
+     ```
+  
+  2. Create the database:
+     ```sql
+     CREATE DATABASE mydb;
+     ```
+  
+  3. Verify connection string:
+     ```bash
+     # Correct format
+     host.docker.internal:3306/existing_db
+     ```
+</Accordion>
+
+### MikroTik Connection Errors
+
+<Accordion title="Connection timeout">
+  **Cause:** MikroTik API service is disabled or router is unreachable.
+  
+  **Solutions:**
+  
+  1. Enable API service on MikroTik:
+     ```routeros
+     /ip service enable api
+     /ip service set api address=0.0.0.0/0
+     ```
+  
+  2. For SSL connections, enable API-SSL:
+     ```routeros
+     /ip service enable api-ssl
+     ```
+  
+  3. Test connectivity:
+     ```bash
+     nc -zv 192.168.88.1 8728
+     # For SSL
+     nc -zv 192.168.88.1 8729
+     ```
+  
+  4. Check firewall rules on MikroTik:
+     ```routeros
+     /ip firewall filter print where dst-port=8728
+     ```
+</Accordion>
+
+<Accordion title="Authentication failed">
+  **Cause:** Invalid credentials or user doesn't have API access.
+  
+  **Solutions:**
+  
+  1. Verify user exists:
+     ```routeros
+     /user print
+     ```
+  
+  2. Ensure user has correct group:
+     ```routeros
+     /user set [find name=mcp_user] group=read
+     ```
+  
+  3. Test credentials manually:
+     ```bash
+     # Use MikroTik API test tool or Winbox
+     ```
+  
+  4. Check environment variables:
+     ```bash
+     docker run -i --rm \
+       -e MK_USER=correct_user \
+       -e MK_PASSWORD=correct_password \
+       mochoa/mcp-mikrotik 192.168.88.1
+     ```
+</Accordion>
+
+## Permission Errors
+
+### Oracle Permission Issues
+
+<Accordion title="ORA-00942: table or view does not exist">
+  **Cause:** User doesn't have SELECT permission on the table.
+  
+  **Solutions:**
+  
+  1. Grant SELECT permission:
+     ```sql
+     GRANT SELECT ON schema.table_name TO mcp_readonly;
+     ```
+  
+  2. Grant SELECT on entire schema:
+     ```sql
+     BEGIN
+       FOR t IN (SELECT table_name FROM dba_tables WHERE owner = 'SCHEMA_NAME') LOOP
+         EXECUTE IMMEDIATE 'GRANT SELECT ON SCHEMA_NAME.' || t.table_name || ' TO mcp_readonly';
+       END LOOP;
+     END;
+     /
+     ```
+</Accordion>
+
+<Accordion title="ORA-01031: insufficient privileges (EXPLAIN)">
+  **Cause:** User lacks `SELECT_CATALOG_ROLE` for explain plans.
+  
+  **Solution:**
+  
+  ```sql
+  GRANT SELECT_CATALOG_ROLE TO mcp_readonly;
+  ```
+</Accordion>
+
+<Accordion title="ORA-00604: error occurred at recursive SQL level (AWR)">
+  **Cause:** User lacks privileges for AWR package.
+  
+  **Solution:**
+  
+  ```sql
+  GRANT SELECT_CATALOG_ROLE TO mcp_readonly;
+  GRANT EXECUTE ON DBMS_WORKLOAD_REPOSITORY TO mcp_readonly;
+  ```
+</Accordion>
+
+### MySQL Permission Issues
+
+<Accordion title="SELECT command denied">
+  **Cause:** User doesn't have SELECT privilege.
+  
+  **Solutions:**
+  
+  1. Grant SELECT on specific tables:
+     ```sql
+     GRANT SELECT ON mydb.users TO 'mcp_readonly'@'%';
+     ```
+  
+  2. Grant SELECT on entire database:
+     ```sql
+     GRANT SELECT ON mydb.* TO 'mcp_readonly'@'%';
+     FLUSH PRIVILEGES;
+     ```
+</Accordion>
+
+<Accordion title="Performance Schema access denied">
+  **Cause:** User lacks access to `performance_schema` (needed for AWR).
+  
+  **Solution:**
+  
+  ```sql
+  GRANT SELECT ON performance_schema.* TO 'mcp_readonly'@'%';
+  FLUSH PRIVILEGES;
+  ```
+</Accordion>
+
+## Docker Issues
+
+<Accordion title="docker: command not found">
+  **Cause:** Docker is not installed or not in PATH.
+  
+  **Solutions:**
+  
+  1. Install Docker Desktop (macOS/Windows) or Docker Engine (Linux)
+  2. Verify installation:
+     ```bash
+     docker --version
+     ```
+  
+  3. Ensure Docker daemon is running:
+     ```bash
+     sudo systemctl start docker
+     ```
+</Accordion>
+
+<Accordion title="Cannot connect to Docker daemon">
+  **Cause:** Docker daemon is not running or user lacks permissions.
+  
+  **Solutions:**
+  
+  1. Start Docker daemon:
+     ```bash
+     sudo systemctl start docker
+     ```
+  
+  2. Add user to docker group:
+     ```bash
+     sudo usermod -aG docker $USER
+     # Log out and back in
+     ```
+  
+  3. Test Docker access:
+     ```bash
+     docker ps
+     ```
+</Accordion>
+
+<Accordion title="Image pull errors">
+  **Cause:** Network issues or image doesn't exist.
+  
+  **Solutions:**
+  
+  1. Pull image manually:
+     ```bash
+     docker pull mochoa/mcp-mysql
+     ```
+  
+  2. Check Docker Hub for image availability
+  
+  3. Build image locally if needed:
+     ```bash
+     docker build -t mochoa/mcp-mysql -f src/mysql/Dockerfile .
+     ```
+</Accordion>
+
+## Client Configuration Issues
+
+### Claude Desktop
+
+<Accordion title="MCP server not appearing in Claude">
+  **Cause:** Configuration syntax error or file location issue.
+  
+  **Solutions:**
+  
+  1. Verify JSON syntax:
+     ```bash
+     # Use a JSON validator
+     cat ~/Library/Application\ Support/Claude/claude_desktop_config.json | jq .
+     ```
+  
+  2. Check file location:
+     - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+     - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+  
+  3. Restart Claude Desktop after configuration changes
+  
+  4. Check Claude logs for errors:
+     - macOS: `~/Library/Logs/Claude/`
+</Accordion>
+
+<Accordion title="Environment variables not being passed">
+  **Cause:** Incorrect syntax in configuration.
+  
+  **Solution:**
+  
+  ```json
+  {
+    "mcpServers": {
+      "mysql": {
+        "command": "docker",
+        "args": [
+          "run", "-i", "--rm",
+          "-e", "MYSQL_USER=myuser",
+          "-e", "MYSQL_PASSWORD=mypass",
+          "mochoa/mcp-mysql"
+        ]
+      }
+    }
+  }
+  ```
+  
+  Note: Use `-e` flag for each environment variable.
+</Accordion>
+
+### VS Code
+
+<Accordion title="MCP inputs not prompting">
+  **Cause:** Incorrect input configuration.
+  
+  **Solutions:**
+  
+  1. Verify input syntax:
+     ```json
+     {
+       "mcp": {
+         "inputs": [
+           {
+             "type": "promptString",
+             "id": "mysql_user",
+             "description": "MySQL username"
+           }
+         ]
+       }
+     }
+     ```
+  
+  2. Reload VS Code window: `Ctrl+Shift+P` → "Developer: Reload Window"
+</Accordion>
+
+<Accordion title="MCP server not recognized">
+  **Cause:** Configuration not in correct location.
+  
+  **Solutions:**
+  
+  1. Place in User Settings (JSON) or `.vscode/mcp.json`
+  2. Remove `mcp` key when using `.vscode/mcp.json`:
+     ```json
+     {
+       "servers": {
+         "mysql": { ... }
+       }
+     }
+     ```
+</Accordion>
+
+## Debugging Tips
+
+### Enable Verbose Logging
+
+<Steps>
+  <Step title="Docker Container Logs">
+    View real-time logs from MCP server containers:
+    
+    ```bash
+    docker logs -f <container-id>
+    ```
+  </Step>
+  
+  <Step title="Database Query Logs">
+    **MySQL:**
+    ```sql
+    SET GLOBAL general_log = 'ON';
+    SET GLOBAL log_output = 'TABLE';
+    SELECT * FROM mysql.general_log ORDER BY event_time DESC LIMIT 20;
+    ```
+    
+    **Oracle:**
+    ```sql
+    ALTER SESSION SET SQL_TRACE = TRUE;
+    ```
+  </Step>
+  
+  <Step title="Network Traffic Analysis">
+    Use tcpdump to inspect network traffic:
+    
+    ```bash
+    # MySQL
+    sudo tcpdump -i any -A 'port 3306'
+    
+    # Oracle
+    sudo tcpdump -i any -A 'port 1521'
+    
+    # MikroTik
+    sudo tcpdump -i any -A 'port 8728 or port 8729'
+    ```
+  </Step>
+</Steps>
+
+### Testing Connection Manually
+
+<Accordion title="Oracle SQLPlus Test">
+  ```bash
+  sqlplus mcp_readonly/password@host.docker.internal:1521/freepdb1
+  ```
+</Accordion>
+
+<Accordion title="MySQL Client Test">
+  ```bash
+  mysql -h host.docker.internal -P 3306 -u mcp_readonly -p mydb
+  ```
+</Accordion>
+
+<Accordion title="MikroTik API Test">
+  Use a MikroTik API testing tool or Python script:
+  
+  ```python
+  import routeros_api
+  
+  connection = routeros_api.RouterOsApiPool(
+      '192.168.88.1',
+      username='admin',
+      password='password',
+      plaintext_login=True
+  )
+  api = connection.get_api()
+  list_resource = api.get_resource('/interface')
+  print(list_resource.get())
+  ```
+</Accordion>
+
+### Common Error Messages
+
+| Error | Likely Cause | Quick Fix |
+|-------|--------------|----------|
+| `ECONNREFUSED` | Service not running | Start database/router service |
+| `ETIMEDOUT` | Firewall blocking | Check firewall rules |
+| `Authentication failed` | Wrong credentials | Verify username/password |
+| `Permission denied` | Insufficient privileges | Grant required permissions |
+| `Unknown database` | Database doesn't exist | Create database or fix name |
+| `Table doesn't exist` | No SELECT grant | Grant SELECT permission |
+
+## Performance Issues
+
+<Accordion title="Slow query execution">
+  **Causes:**
+  - Missing indexes
+  - Large result sets
+  - Network latency
+  
+  **Solutions:**
+  
+  1. Use `EXPLAIN` to analyze queries:
+     ```
+     mysql-explain SELECT * FROM large_table WHERE column = 'value'
+     ```
+  
+  2. Add indexes:
+     ```sql
+     CREATE INDEX idx_column ON large_table(column);
+     ```
+  
+  3. Limit result sets:
+     ```sql
+     SELECT * FROM large_table LIMIT 100;
+     ```
+</Accordion>
+
+<Accordion title="AWR report generation timeout">
+  **Cause:** Large performance schema data or slow database.
+  
+  **Solutions:**
+  
+  1. Increase query timeout (if supported)
+  2. Optimize Performance Schema configuration:
+     ```sql
+     -- Reduce history retention
+     UPDATE performance_schema.setup_consumers 
+     SET ENABLED = 'NO' 
+     WHERE NAME LIKE '%history%';
+     ```
+</Accordion>
+
+## Getting Help
+
+<Note>
+If you encounter issues not covered in this guide:
+
+1. Check the [GitHub repository](https://github.com/marcelo-ochoa/servers) for similar issues
+2. Review server-specific documentation:
+   - [Oracle README](https://github.com/marcelo-ochoa/servers/blob/main/src/oracle/README.md)
+   - [MySQL README](https://github.com/marcelo-ochoa/servers/blob/main/src/mysql/README.md)
+   - [MikroTik README](https://github.com/marcelo-ochoa/servers/blob/main/src/mikrotik/README.md)
+3. Check MCP protocol documentation at [modelcontextprotocol.io](https://modelcontextprotocol.io/)
+4. Open a GitHub issue with:
+   - Error messages
+   - Configuration (redact credentials)
+   - Steps to reproduce
+   - Environment details (OS, Docker version, etc.)
+</Note>

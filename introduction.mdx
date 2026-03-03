@@ -1,0 +1,145 @@
+---
+title: Introduction
+description: Model Context Protocol servers for databases and infrastructure management
+---
+
+# MCP Servers for databases and infrastructure
+
+This collection provides reference implementations of the [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) for databases and infrastructure management. These servers enable Large Language Models (LLMs) to securely interact with Oracle, PostgreSQL, MySQL databases, as well as MikroTik routers and QNAP NAS devices.
+
+<Note>
+These servers are intended as **reference implementations** to demonstrate MCP features and SDK usage. They serve as educational examples for developers building their own MCP servers, not as production-ready solutions. Evaluate your own security requirements and implement appropriate safeguards based on your specific threat model and use case.
+</Note>
+
+## Available servers
+
+<CardGroup cols={2}>
+  <Card title="Oracle Database" icon="database" href="#oracle-database">
+    Read-only access to Oracle databases with query execution, explain plans, and AWR reporting
+  </Card>
+  <Card title="PostgreSQL" icon="database" href="#postgresql">
+    Schema inspection, read-only queries, and performance analysis for PostgreSQL
+  </Card>
+  <Card title="MySQL" icon="database" href="#mysql">
+    Execute queries, analyze performance, and inspect MySQL database schemas
+  </Card>
+  <Card title="MikroTik RouterOS" icon="router" href="#mikrotik-routeros">
+    Monitor and analyze MikroTik routers through the RouterOS API
+  </Card>
+  <Card title="QNAP NAS" icon="hard-drive" href="#qnap-nas">
+    System monitoring and file management for QNAP NAS devices
+  </Card>
+</CardGroup>
+
+## Quick links
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Install servers using NPM or Docker
+  </Card>
+  <Card title="Quick start" icon="rocket" href="/quickstart">
+    Get your first MCP server running in minutes
+  </Card>
+</CardGroup>
+
+## Oracle Database
+
+Provides read-only access to Oracle Database with schema inspection, query execution, and performance analysis.
+
+**Key features:**
+- Execute read-only SQL queries with automatic transaction management
+- Generate explain plans for query optimization
+- Access Automatic Workload Repository (AWR) reports
+- Retrieve table statistics and schema information
+- Reconnect with new credentials using the `orcl-connect` tool
+
+**Tools:**
+- `orcl-query` - Execute read-only SQL queries
+- `orcl-explain` - Generate explain plans (requires SELECT_CATALOG_ROLE)
+- `orcl-stats` - Get table statistics
+- `orcl-connect` - Connect with new credentials
+- `orcl-awr` - Generate AWR reports
+
+## PostgreSQL
+
+Enables LLMs to inspect PostgreSQL database schemas and execute read-only queries with performance monitoring.
+
+**Key features:**
+- Read-only SQL query execution
+- Table statistics and schema introspection
+- Explain plan generation
+- Performance reporting similar to Oracle AWR
+- SSL/TLS connection support
+
+**Tools:**
+- `pg-query` - Execute read-only queries
+- `pg-stats` - Get table statistics
+- `pg-explain` - Generate explain plans
+- `pg-connect` - Connect to PostgreSQL database
+- `pg-awr` - Generate performance reports
+
+## MySQL
+
+Provides read-only access to MySQL databases with comprehensive schema inspection and performance analysis.
+
+**Key features:**
+- Execute read-only SQL queries
+- Explain plan generation in JSON format
+- Comprehensive table, index, and column statistics
+- Performance reporting with InnoDB metrics
+- Support for Performance Schema
+
+**Tools:**
+- `mysql-query` - Execute read-only queries
+- `mysql-explain` - Generate explain plans
+- `mysql-stats` - Get table statistics
+- `mysql-connect` - Connect with new credentials
+- `mysql-awr` - Generate performance reports
+
+## MikroTik RouterOS
+
+A read-only MCP server for monitoring and analyzing MikroTik routers through the RouterOS API.
+
+**Key features:**
+- Connection management with plain TCP (8728) and SSL/TLS (8729)
+- Dynamic resource monitoring for interfaces, bridges, and routing tables
+- Support for modern (v6.43+) and legacy RouterOS versions
+- Comprehensive system reports with traffic statistics
+- Security audit and performance analysis
+
+**Tools:**
+- `mk-connect` - Connect to a router
+- `mk-report` - Generate comprehensive system report
+- `mk-get` - Execute RouterOS API commands
+- `mk-awr` - Generate performance and security audit report
+
+## QNAP NAS
+
+Monitor QNAP NAS devices, manage files, and generate comprehensive system reports.
+
+**Key features:**
+- System status monitoring (CPU, memory, disks, volumes)
+- File management with tabular directory listings
+- Detailed file information retrieval
+- Real-time disk health and temperature monitoring
+- Volume usage and capacity tracking
+
+**Tools:**
+- `qnap-connect` - Connect to QNAP NAS
+- `qnap-report` - Generate system report in Markdown
+- `qnap-dir` - List directory contents
+- `qnap-file-info` - Get detailed file information
+
+## Security considerations
+
+<Warning>
+All database servers execute queries in READ ONLY transactions to prevent data modification. However, you should:
+- Use database accounts with minimal required privileges
+- Store credentials in environment variables, not in configuration files
+- Evaluate your security requirements before deploying in production
+- Implement appropriate network security controls
+</Warning>
+
+## License
+
+This project is licensed under the Apache License, Version 2.0 for new contributions, with existing code under MIT. See the LICENSE file for details.

@@ -1,0 +1,212 @@
+---
+title: QNAP NAS
+description: MCP server for monitoring QNAP NAS devices with system status reporting, file management, and storage health monitoring
+---
+
+An MCP server implementation for QNAP NAS devices, providing tools to monitor system status, manage files, and generate comprehensive reports with professional tabular formatting.
+
+<Note>
+  This server connects to QNAP NAS devices via their web API and provides both tools for active querying and resources for passive monitoring.
+</Note>
+
+## Features
+
+- **Session Management**: Connect and authenticate with QNAP NAS devices
+- **System Reporting**: Comprehensive Markdown reports with CPU, memory, disk, and volume information
+- **File Management**: Browse directories and get detailed file information
+- **Resource Monitoring**: Real-time disk health and volume usage via MCP resources
+- **Professional Formatting**: Tabular data presentation using toon tables
+
+## Installation
+
+<CodeGroup>
+```bash NPM
+npx -y @marcelo-ochoa/server-qnap
+```
+
+```bash Docker
+docker pull mochoa/mcp-qnap
+```
+</CodeGroup>
+
+## Configuration
+
+### Environment Variables
+
+- `QNAP_USER`: QNAP admin username
+- `QNAP_PASSWORD`: QNAP admin password
+
+### Startup Arguments
+
+1. `host`: (Optional) URL of the QNAP NAS (e.g., `http://10.1.1.241:8080`)
+
+If the host and environment variables are provided, the server will attempt to connect automatically at startup.
+
+### Claude Desktop Setup
+
+<CodeGroup>
+```json NPM
+{
+  "mcpServers": {
+    "qnap": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@marcelo-ochoa/server-qnap",
+        "http://10.1.1.241:8080"
+      ],
+      "env": {
+        "QNAP_USER": "admin",
+        "QNAP_PASSWORD": "password"
+      }
+    }
+  }
+}
+```
+
+```json Docker
+{
+  "mcpServers": {
+    "qnap": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "QNAP_USER=admin",
+        "-e",
+        "QNAP_PASSWORD=password",
+        "mochoa/mcp-qnap",
+        "http://10.1.1.241:8080"
+      ]
+    }
+  }
+}
+```
+</CodeGroup>
+
+## Resources
+
+The server exposes QNAP system components as MCP resources, providing structured JSON data for monitoring:
+
+### Disks
+
+```
+qnap://[host]:[port]/disk/[disk-id]
+```
+
+Provides real-time disk health, model, serial, and temperature information.
+
+**Example:** `qnap://10.1.1.241:8080/disk/0`
+
+### Volumes
+
+```
+qnap://[host]:[port]/volume/[volume-id]
+```
+
+Provides detailed storage usage, capacity, and volume names.
+
+**Example:** `qnap://10.1.1.241:8080/volume/1`
+
+<Note>
+  These resources allow AI models to monitor NAS health and storage levels without manually calling reporting tools.
+</Note>
+
+## Tools
+
+### qnap-connect
+
+Connect to a QNAP NAS and obtain a session ID.
+
+**Parameters:**
+- `host`: The QNAP NAS URL (e.g., `http://10.1.1.241:8080`)
+- `username`: Your admin username
+- `password`: Your admin password
+
+**Example:**
+```
+qnap-connect http://10.1.1.241:8080 admin mypassword
+```
+
+### qnap-report
+
+Generate a comprehensive Markdown system report including CPU, memory, disks, and volumes.
+
+Powered by toon tables for professional formatting, perfect for both human reading and AI analysis.
+
+**Parameters:** None
+
+**Output:** Markdown-formatted system report with:
+- CPU usage and information
+- Memory statistics
+- Disk health and status (tabular format)
+- Volume usage and capacity (tabular format)
+
+### qnap-dir
+
+List the contents of a directory in a professional tabular format, automatically sorted by modification date.
+
+**Parameters:**
+- `path`: The path to list (e.g., `/Public`)
+
+**Example:**
+```
+qnap-dir /Public
+```
+
+### qnap-file-info
+
+Get detailed information about a specific file.
+
+**Parameters:**
+- `path`: The directory path
+- `filename`: The name of the file
+
+**Example:**
+```
+qnap-file-info /Public document.pdf
+```
+
+## Local Development
+
+<Steps>
+  <Step title="Navigate to the qnap directory">
+    ```bash
+    cd src/qnap
+    ```
+  </Step>
+  
+  <Step title="Install dependencies">
+    ```bash
+    npm install
+    ```
+  </Step>
+  
+  <Step title="Build the project">
+    ```bash
+    npm run build
+    ```
+  </Step>
+</Steps>
+
+## Docker Usage
+
+<Steps>
+  <Step title="Build the container">
+    ```bash
+    docker build -t mochoa/mcp-qnap -f src/qnap/Dockerfile .
+    ```
+  </Step>
+  
+  <Step title="Run the container">
+    ```bash
+    docker run -i --rm -e QNAP_USER=admin -e QNAP_PASSWORD=password mochoa/mcp-qnap http://10.1.1.241:8080
+    ```
+  </Step>
+</Steps>
+
+## License
+
+Apache License, Version 2.0 for new contributions, with existing code under MIT.

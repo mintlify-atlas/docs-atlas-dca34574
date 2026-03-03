@@ -1,0 +1,348 @@
+---
+title: Docker Deployment Guide
+description: Deploy MCP servers using Docker containers with examples for Oracle, MySQL, and MikroTik servers
+---
+
+## Overview
+
+All MCP servers in this repository can be deployed using Docker, providing consistent environments and simplified dependency management. This guide covers building, running, and configuring Docker-based MCP servers.
+
+## Building Docker Images
+
+### Oracle MCP Server
+
+```bash
+docker build -t mochoa/mcp-oracle -f src/oracle/Dockerfile .
+```
+
+### MySQL MCP Server
+
+```bash
+docker build -t mochoa/mcp-mysql -f src/mysql/Dockerfile .
+```
+
+### MikroTik MCP Server
+
+```bash
+docker build -t mochoa/mcp-mikrotik -f src/mikrotik/Dockerfile .
+```
+
+<Note>
+All builds should be run from the repository root directory, as the Dockerfiles reference source code paths relative to the root.
+</Note>
+
+## Running MCP Servers
+
+### Oracle Database Server
+
+#### With Connection String
+
+```bash
+docker run -i --rm \
+  -e ORACLE_USER=myuser \
+  -e ORACLE_PASSWORD=mypassword \
+  mochoa/mcp-oracle \
+  host.docker.internal:1521/freepdb1
+```
+
+#### Without Connection String
+
+```bash
+docker run -i --rm \
+  -e ORACLE_USER=myuser \
+  -e ORACLE_PASSWORD=mypassword \
+  mochoa/mcp-oracle
+```
+
+When run without a connection string, use the `orcl-connect` tool to establish a connection.
+
+### MySQL Database Server
+
+#### Basic Usage
+
+```bash
+docker run -i --rm \
+  -e MYSQL_USER=root \
+  -e MYSQL_PASSWORD=mypassword \
+  mochoa/mcp-mysql \
+  host.docker.internal:3306/mydb
+```
+
+#### With Performance Schema
+
+For optimal performance monitoring with the `mysql-awr` tool:
+
+```bash
+docker run -i --rm \
+  -e MYSQL_USER=root \
+  -e MYSQL_PASSWORD=mypassword \
+  mochoa/mcp-mysql \
+  host.docker.internal:3306/mydb
+```
+
+Ensure your MySQL server has Performance Schema enabled:
+
+```ini
+[mysqld]
+performance_schema = ON
+```
+
+### MikroTik RouterOS Server
+
+#### Plain TCP Connection
+
+```bash
+docker run -i --rm \
+  -e MK_USER=admin \
+  -e MK_PASSWORD=mypassword \
+  mochoa/mcp-mikrotik \
+  192.168.88.1 \
+  false
+```
+
+#### SSL/TLS Connection
+
+```bash
+docker run -i --rm \
+  -e MK_USER=admin \
+  -e MK_PASSWORD=mypassword \
+  mochoa/mcp-mikrotik \
+  192.168.88.1 \
+  true
+```
+
+<Warning>
+The second argument (`true`/`false`) determines whether to use SSL/TLS. MikroTik uses port 8728 for plain connections and 8729 for secure connections.
+</Warning>
+
+## Docker Networking
+
+### Connecting to Host Services
+
+<Accordion title="macOS Host Network Access">
+  When running Docker on macOS and connecting to services on the host machine (like a local database), use `host.docker.internal` instead of `localhost`:
+
+  ```bash
+  # Correct for macOS
+  docker run -i --rm \
+    -e MYSQL_USER=root \
+    -e MYSQL_PASSWORD=pass \
+    mochoa/mcp-mysql \
+    host.docker.internal:3306/mydb
+
+  # Incorrect - will not connect
+  # localhost:3306/mydb
+  ```
+</Accordion>
+
+<Accordion title="Linux Host Network Access">
+  On Linux, you can use `--network host` to access host services:
+
+  ```bash
+  docker run -i --rm --network host \
+    -e MYSQL_USER=root \
+    -e MYSQL_PASSWORD=pass \
+    mochoa/mcp-mysql \
+    localhost:3306/mydb
+  ```
+
+  Or use the host gateway IP:
+
+  ```bash
+  docker run -i --rm \
+    --add-host=host.docker.internal:host-gateway \
+    -e MYSQL_USER=root \
+    -e MYSQL_PASSWORD=pass \
+    mochoa/mcp-mysql \
+    host.docker.internal:3306/mydb
+  ```
+</Accordion>
+
+<Accordion title="Windows Host Network Access">
+  On Windows with Docker Desktop, use `host.docker.internal`:
+
+  ```bash
+  docker run -i --rm \
+    -e MYSQL_USER=root \
+    -e MYSQL_PASSWORD=pass \
+    mochoa/mcp-mysql \
+    host.docker.internal:3306/mydb
+  ```
+</Accordion>
+
+## Client Integration
+
+### Claude Desktop
+
+Add Docker-based servers to `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "mysql": {
+      "command": "docker",
+      "args": [
+        "run", 
+        "-i", 
+        "--rm",
+        "-e", "MYSQL_USER=myuser",
+        "-e", "MYSQL_PASSWORD=mypassword",
+        "mochoa/mcp-mysql",
+        "host.docker.internal:3306/mydb"
+      ]
+    },
+    "oracle": {
+      "command": "docker",
+      "args": [
+        "run", 
+        "-i", 
+        "--rm",
+        "-e", "ORACLE_USER=scott",
+        "-e", "ORACLE_PASSWORD=tiger",
+        "mochoa/mcp-oracle",
+        "host.docker.internal:1521/freepdb1"
+      ]
+    }
+  }
+}
+```
+
+### VS Code
+
+Configure in `.vscode/mcp.json`:
+
+```json
+{
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "mysql_user",
+      "description": "MySQL username"
+    },
+    {
+      "type": "promptString",
+      "id": "mysql_password",
+      "description": "MySQL password",
+      "password": true
+    }
+  ],
+  "servers": {
+    "mysql": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e", "MYSQL_USER=${input:mysql_user}",
+        "-e", "MYSQL_PASSWORD=${input:mysql_password}",
+        "mochoa/mcp-mysql"
+      ]
+    }
+  }
+}
+```
+
+## Docker Run Options
+
+### Essential Flags
+
+- `-i` - Keep STDIN open for MCP protocol communication
+- `--rm` - Automatically remove container when it exits
+- `-e` - Set environment variables for credentials
+
+### Additional Options
+
+<Steps>
+  <Step title="Volume Mounts">
+    Mount configuration or data files if needed:
+    
+    ```bash
+    docker run -i --rm \
+      -v /path/to/config:/config \
+      mochoa/mcp-mysql
+    ```
+  </Step>
+  
+  <Step title="Resource Limits">
+    Set memory and CPU limits:
+    
+    ```bash
+    docker run -i --rm \
+      --memory="512m" \
+      --cpus="0.5" \
+      mochoa/mcp-mysql
+    ```
+  </Step>
+  
+  <Step title="Network Configuration">
+    Specify custom networks:
+    
+    ```bash
+    docker run -i --rm \
+      --network my-network \
+      mochoa/mcp-mysql
+    ```
+  </Step>
+</Steps>
+
+## Environment Variables Reference
+
+### Oracle MCP Server
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `ORACLE_USER` | Conditional | Username (required if connecting on startup) |
+| `ORACLE_PASSWORD` | Conditional | Password (required if connecting on startup) |
+
+### MySQL MCP Server
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `MYSQL_USER` | Conditional | Username (required if connecting on startup) |
+| `MYSQL_PASSWORD` | Conditional | Password (required if connecting on startup) |
+
+### MikroTik MCP Server
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `MK_USER` | Conditional | Username (required if connecting on startup) |
+| `MK_PASSWORD` | Conditional | Password (required if connecting on startup) |
+
+<Note>
+All environment variables are optional if you plan to use runtime connection tools like `orcl-connect`, `mysql-connect`, or `mk-connect`.
+</Note>
+
+## Troubleshooting Docker Issues
+
+### Connection Refused
+
+```bash
+# Check if the database is accessible from the Docker network
+docker run --rm -it alpine nc -zv host.docker.internal 3306
+```
+
+### Permission Issues
+
+```bash
+# Some systems may require running with --user flag
+docker run -i --rm --user $(id -u):$(id -g) mochoa/mcp-mysql
+```
+
+### Image Pull Issues
+
+```bash
+# Pull the image explicitly
+docker pull mochoa/mcp-mysql
+
+# Check available images
+docker images | grep mochoa
+```
+
+## Best Practices
+
+1. **Never hardcode credentials** in Dockerfiles or scripts - use environment variables
+2. **Use `--rm` flag** to prevent container accumulation
+3. **Keep images updated** with security patches
+4. **Test connectivity** from the container before configuring clients
+5. **Use secrets management** for production deployments
+6. **Monitor container logs** for connection issues

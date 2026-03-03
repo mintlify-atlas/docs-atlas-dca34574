@@ -1,0 +1,272 @@
+---
+title: Configuration Guide
+description: Learn how to configure MCP servers with environment variables, connection strings, and client integrations
+---
+
+## Overview
+
+MCP servers can be configured through environment variables, command-line arguments, and client-specific configuration files. This guide covers configuration for Oracle, MySQL, and MikroTik MCP servers across different clients.
+
+## Environment Variables
+
+### Oracle Database
+
+The Oracle MCP server uses environment variables for secure credential management:
+
+- `ORACLE_USER` - Oracle database username (optional if using `orcl-connect` tool)
+- `ORACLE_PASSWORD` - Oracle database password (optional if using `orcl-connect` tool)
+
+### MySQL Database
+
+The MySQL MCP server uses the following environment variables:
+
+- `MYSQL_USER` - MySQL database username (optional if using `mysql-connect` tool)
+- `MYSQL_PASSWORD` - MySQL database password (optional if using `mysql-connect` tool)
+
+### MikroTik RouterOS
+
+The MikroTik MCP server requires:
+
+- `MK_USER` - MikroTik username (required if providing host at startup)
+- `MK_PASSWORD` - MikroTik password (required if providing host at startup)
+
+<Note>
+Environment variables are optional if you plan to use the respective `connect` tools after server startup. However, they are required for automatic connection on startup.
+</Note>
+
+## Connection Strings
+
+### Oracle Connection Formats
+
+The Oracle connection string should contain only host, port, and service/SID information without embedded credentials:
+
+- `host:port/service_name` - Example: `host.docker.internal:1521/freepdb1`
+- `host:port:SID` - Example: `localhost:1521:XE`
+
+### MySQL Connection Formats
+
+MySQL connection strings support:
+
+- `mysql://host:port/dbname` - Full URI format
+- `host:port/dbname` - Simplified format (e.g., `host.docker.internal:3306/mydb`)
+
+### MikroTik Connection
+
+MikroTik connections require:
+
+1. `host` - IP address of the router (e.g., `192.168.88.1`)
+2. `secure` - Optional boolean for SSL/TLS (default: `false`)
+
+<Warning>
+When using Docker on macOS to connect to services on the host network, use `host.docker.internal` instead of `localhost`.
+</Warning>
+
+## Claude Desktop Configuration
+
+### Oracle with Docker
+
+Add to `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "oracle": {
+      "command": "docker",
+      "args": [
+        "run", 
+        "-i", 
+        "--rm",
+        "-e", "ORACLE_USER=myuser",
+        "-e", "ORACLE_PASSWORD=mypassword",
+        "mochoa/mcp-oracle",
+        "host.docker.internal:1521/freepdb1"
+      ]
+    }
+  }
+}
+```
+
+### MySQL with Docker
+
+```json
+{
+  "mcpServers": {
+    "mysql": {
+      "command": "docker",
+      "args": [
+        "run", 
+        "-i", 
+        "--rm",
+        "-e", "MYSQL_USER=myuser",
+        "-e", "MYSQL_PASSWORD=mypassword",
+        "mochoa/mcp-mysql",
+        "host.docker.internal:3306/mydb"
+      ]
+    }
+  }
+}
+```
+
+### MySQL with NPX
+
+```json
+{
+  "mcpServers": {
+    "mysql": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@marcelo-ochoa/server-mysql"
+      ],
+      "env": {
+        "MYSQL_USER": "myuser",
+        "MYSQL_PASSWORD": "mypassword"
+      }
+    }
+  }
+}
+```
+
+### MikroTik with NPX
+
+```json
+{
+  "mcpServers": {
+    "mikrotik": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@marcelo-ochoa/server-mikrotik",
+        "192.168.88.1"
+      ],
+      "env": {
+        "MK_USER": "ai_agent",
+        "MK_PASSWORD": "ai_password"
+      }
+    }
+  }
+}
+```
+
+## VS Code Configuration
+
+<Steps>
+  <Step title="Open User Settings">
+    Press `Ctrl + Shift + P` and type `Preferences: Open User Settings (JSON)`
+  </Step>
+  
+  <Step title="Add MCP Configuration">
+    Add the MCP server configuration to your user settings or create `.vscode/mcp.json` in your workspace.
+  </Step>
+  
+  <Step title="Configure Inputs">
+    Define prompts for credentials to keep sensitive data out of version control.
+  </Step>
+</Steps>
+
+### MySQL Example for VS Code
+
+```json
+{
+  "mcp": {
+    "inputs": [
+      {
+        "type": "promptString",
+        "id": "mysql_user",
+        "description": "MySQL username"
+      },
+      {
+        "type": "promptString",
+        "id": "mysql_password",
+        "description": "MySQL password",
+        "password": true
+      }
+    ],
+    "servers": {
+      "mysql": {
+        "command": "docker",
+        "args": [
+          "run",
+          "-i",
+          "--rm",
+          "-e", "MYSQL_USER=${input:mysql_user}",
+          "-e", "MYSQL_PASSWORD=${input:mysql_password}",
+          "mochoa/mcp-mysql"
+        ]
+      }
+    }
+  }
+}
+```
+
+<Note>
+The `mcp` key is not needed when using `.vscode/mcp.json` in your workspace.
+</Note>
+
+## Antigravity Code Editor Configuration
+
+Place configuration in `~/.gemini/antigravity/mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "mysql": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "MYSQL_USER=myuser",
+        "-e",
+        "MYSQL_PASSWORD=mypassword",
+        "mochoa/mcp-mysql",
+        "host.docker.internal:3306/mydb"
+      ]
+    }
+  },
+  "inputs": []
+}
+```
+
+## Runtime Connection Tools
+
+If you prefer not to configure credentials at startup, you can connect at runtime using dedicated tools:
+
+### Oracle Connect Tool
+
+```
+orcl-connect host.docker.internal:1521/freepdb1 hr hr_2025
+```
+
+### MySQL Connect Tool
+
+```
+mysql-connect host.docker.internal:3306/hr root my_2025
+```
+
+### MikroTik Connect Tool
+
+```
+mk-connect 192.168.88.1 admin mypassword
+```
+
+<Note>
+Using runtime connection tools allows you to omit connection strings and credentials from the initial configuration, providing greater flexibility.
+</Note>
+
+## Protocol Support
+
+### Oracle
+
+Supports SQLNet protocol on default port 1521.
+
+### MySQL
+
+Supports both plain TCP (port 3306) and SSL/TLS connections.
+
+### MikroTik
+
+- **Plain TCP**: Port 8728 (default)
+- **SSL/TLS**: Port 8729 (set `secure: true`)
+- Supports both modern (v6.43+) and legacy login methods

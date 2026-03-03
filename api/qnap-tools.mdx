@@ -1,0 +1,360 @@
+---
+title: 'QNAP Tools'
+description: 'QNAP NAS management tools and resources for storage monitoring'
+---
+
+# QNAP NAS Server
+
+An MCP server implementation for QNAP NAS devices, providing tools to monitor system status, manage files, and generate reports.
+
+## Tools
+
+### qnap-connect
+
+Connect to a QNAP NAS and obtain a session ID for subsequent operations.
+
+<ParamField path="host" type="string" required>
+  The QNAP NAS URL including protocol and port
+</ParamField>
+
+<ParamField path="username" type="string" required>
+  Admin username for authentication
+</ParamField>
+
+<ParamField path="password" type="string" required>
+  Admin password for authentication
+</ParamField>
+
+**Example:**
+```bash
+qnap-connect http://10.1.1.241:8080 admin mypassword
+```
+
+**Example with HTTPS:**
+```bash
+qnap-connect https://nas.local:443 admin mypassword
+```
+
+---
+
+### qnap-report
+
+Generate a comprehensive Markdown system report for the connected NAS.
+
+<Note>
+No parameters required. Must be connected to a QNAP NAS first using `qnap-connect`.
+</Note>
+
+**Report includes:**
+- CPU usage and statistics
+- Memory utilization
+- Disk health and status (powered by `toon` tables)
+- Volume information and capacity
+- System temperature
+- Network statistics
+
+<Note>
+The report is formatted in Markdown with professional tables, making it perfect for both human reading and AI analysis.
+</Note>
+
+**Example:**
+```bash
+qnap-report
+```
+
+**Sample output structure:**
+```markdown
+# QNAP System Report
+
+## System Overview
+- Model: TS-453A
+- Firmware: 5.0.1
+- Uptime: 45 days
+
+## CPU & Memory
+- CPU Usage: 12%
+- Memory: 4.2 GB / 8 GB (52%)
+
+## Disks
+| Disk | Model | Capacity | Health | Temp |
+|------|-------|----------|--------|------|
+| 1    | WD40EFRX | 4 TB | Good | 38°C |
+
+## Volumes
+| Volume | Capacity | Used | Free | Status |
+|--------|----------|------|------|--------|
+| Vol1   | 7.2 TB   | 4.1 TB | 3.1 TB | Normal |
+```
+
+---
+
+### qnap-dir
+
+List the contents of a directory in a professional tabular format.
+
+<ParamField path="path" type="string" required>
+  The directory path to list (e.g., `/Public`, `/homes/admin`)
+</ParamField>
+
+<Note>
+Results are automatically sorted by modification date (newest first).
+</Note>
+
+**Example:**
+```bash
+qnap-dir /Public
+```
+
+**Example - User home directory:**
+```bash
+qnap-dir /homes/admin
+```
+
+**Example - Shared folder:**
+```bash
+qnap-dir /Public/Documents
+```
+
+**Sample output:**
+```
+| Name          | Type | Size     | Modified            |
+|---------------|------|----------|---------------------|
+| backup.tar.gz | File | 2.4 GB   | 2026-03-02 14:23:10 |
+| documents     | Dir  | -        | 2026-03-01 09:15:42 |
+| photos        | Dir  | -        | 2026-02-28 18:30:22 |
+```
+
+---
+
+### qnap-file-info
+
+Get detailed information about a specific file.
+
+<ParamField path="path" type="string" required>
+  The directory path containing the file
+</ParamField>
+
+<ParamField path="filename" type="string" required>
+  The name of the file to inspect
+</ParamField>
+
+**Example:**
+```bash
+qnap-file-info /Public backup.tar.gz
+```
+
+**Example - Document file:**
+```bash
+qnap-file-info /Public/Documents report.pdf
+```
+
+**Sample output:**
+```json
+{
+  "name": "backup.tar.gz",
+  "path": "/Public/backup.tar.gz",
+  "size": 2567890123,
+  "size_human": "2.4 GB",
+  "modified": "2026-03-02T14:23:10Z",
+  "created": "2026-03-02T12:00:00Z",
+  "type": "file",
+  "mime_type": "application/gzip",
+  "permissions": "rw-r--r--",
+  "owner": "admin"
+}
+```
+
+## Resources
+
+QNAP system components are exposed as MCP Resources, providing structured JSON data for monitoring.
+
+### Disks
+
+**URI Format:** `qnap://[host]:[port]/disk/[disk-id]`
+
+Access real-time disk health, model, serial number, and temperature.
+
+**Example:**
+```
+qnap://10.1.1.241:8080/disk/0
+qnap://10.1.1.241:8080/disk/1
+qnap://10.1.1.241:8080/disk/2
+```
+
+**Sample resource data:**
+```json
+{
+  "disk_id": "0",
+  "model": "WDC WD40EFRX-68N32N0",
+  "serial": "WD-WCC7K1234567",
+  "capacity": "4000787030016",
+  "health": "GOOD",
+  "temperature": "38",
+  "smart_status": "PASSED",
+  "hours": "12456"
+}
+```
+
+---
+
+### Volumes
+
+**URI Format:** `qnap://[host]:[port]/volume/[volume-id]`
+
+Access detailed storage usage, capacity, and volume status.
+
+**Example:**
+```
+qnap://10.1.1.241:8080/volume/0
+qnap://10.1.1.241:8080/volume/1
+```
+
+**Sample resource data:**
+```json
+{
+  "volume_id": "0",
+  "label": "DataVol1",
+  "total_size": "7999999999999",
+  "free_size": "3421234567890",
+  "used_percent": "57.2",
+  "status": "Ready",
+  "filesystem": "ext4",
+  "raid_level": "RAID5"
+}
+```
+
+<Note>
+These resources allow AI models to monitor NAS health and storage levels without manually calling reporting tools.
+</Note>
+
+## Configuration
+
+### Environment Variables
+
+<ParamField path="QNAP_USER" type="string">
+  QNAP admin username (required if providing host at startup)
+</ParamField>
+
+<ParamField path="QNAP_PASSWORD" type="string">
+  QNAP admin password (required if providing host at startup)
+</ParamField>
+
+### Startup Arguments
+
+1. `host` (optional): URL of the QNAP NAS (e.g., `http://10.1.1.241:8080`)
+
+If the host and environment variables are provided, the server attempts to connect automatically at startup.
+
+### Usage with Claude Desktop
+
+**NPX Installation:**
+
+```json
+{
+  "mcpServers": {
+    "qnap": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@marcelo-ochoa/server-qnap",
+        "http://10.1.1.241:8080"
+      ],
+      "env": {
+        "QNAP_USER": "admin",
+        "QNAP_PASSWORD": "password"
+      }
+    }
+  }
+}
+```
+
+**Docker Installation:**
+
+```json
+{
+  "mcpServers": {
+    "qnap": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "QNAP_USER=admin",
+        "-e",
+        "QNAP_PASSWORD=password",
+        "mochoa/mcp-qnap",
+        "http://10.1.1.241:8080"
+      ]
+    }
+  }
+}
+```
+
+<Note>
+Arguments and environment variables are optional. You can connect later using `qnap-connect`.
+</Note>
+
+## Use Cases
+
+### Storage Monitoring
+
+Monitor storage health and capacity:
+
+```bash
+# Connect to NAS
+qnap-connect http://10.1.1.241:8080 admin password
+
+# Generate comprehensive report
+qnap-report
+
+# Check specific volumes using resources
+# Access: qnap://10.1.1.241:8080/volume/0
+```
+
+### File Management
+
+Browse and inspect files:
+
+```bash
+# List directory contents
+qnap-dir /Public
+
+# Get detailed file information
+qnap-file-info /Public backup.tar.gz
+
+# Navigate subdirectories
+qnap-dir /Public/Documents
+```
+
+### Health Monitoring
+
+Monitor disk health using resources:
+
+```bash
+# Access disk resources programmatically
+# qnap://10.1.1.241:8080/disk/0
+# qnap://10.1.1.241:8080/disk/1
+
+# Generate system report for overview
+qnap-report
+```
+
+<Warning>
+Monitor disk temperatures regularly. Temperatures above 50°C may indicate cooling issues.
+</Warning>
+
+### Automated Backups Verification
+
+Verify backup files and monitor storage:
+
+```bash
+# Check backup directory
+qnap-dir /Public/Backups
+
+# Verify specific backup file
+qnap-file-info /Public/Backups daily_backup_2026-03-03.tar.gz
+
+# Check available space
+qnap-report
+```

@@ -1,80 +1,366 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick start
+description: Get your first MCP server running in minutes
 ---
 
-## Get started in three steps
+# Quick start
 
-Get your documentation site running locally and make your first customization.
+This guide will help you get an MCP server running and execute your first queries. We'll use the MySQL server as an example, but the same concepts apply to all servers in this collection.
 
-### Step 1: Set up your local environment
+## Prerequisites
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+Before you begin, ensure you have:
+
+- A MySQL database running (or access to one)
+- Node.js installed (for NPM installation) OR Docker installed
+- Claude Desktop app (optional, for AI integration)
+
+## Step 1: Choose your installation method
+
+<Tabs>
+  <Tab title="NPM">
+    Install and run the MySQL MCP server using npx:
+
+    ```bash
+    npx -y @marcelo-ochoa/server-mysql
+    ```
+
+    With environment variables for credentials:
+
+    ```bash
+    MYSQL_USER=myuser MYSQL_PASSWORD=mypassword npx -y @marcelo-ochoa/server-mysql
+    ```
+  </Tab>
+  <Tab title="Docker">
+    Run the MySQL MCP server using Docker:
+
+    ```bash
+    docker run -i --rm \
+      -e MYSQL_USER=myuser \
+      -e MYSQL_PASSWORD=mypassword \
+      mochoa/mcp-mysql
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+Connection strings are optional at startup. If you don't provide one, you can connect later using the `mysql-connect` tool.
+</Note>
+
+## Step 2: Connect to your database
+
+Once the server is running, connect to your MySQL database using the `mysql-connect` tool.
+
+### Connection parameters
+
+- **connectionString**: MySQL connection string (e.g., `host.docker.internal:3306/mydb`)
+- **user**: Database username (e.g., `root`)
+- **password**: Database password
+
+### Example connection
+
+```
+mysql-connect host.docker.internal:3306/hr root my_2025
+```
+
+<Warning>
+When using Docker on macOS, use `host.docker.internal` instead of `localhost` to connect to databases running on your host machine.
+</Warning>
+
+## Step 3: Explore your database schema
+
+The MCP server automatically discovers table schemas and exposes them as resources.
+
+### View available tables
+
+Resources are exposed in the format:
+```
+mysql://<database>/<table>/schema
+```
+
+For example:
+- `mysql://hr/employees/schema`
+- `mysql://hr/departments/schema`
+
+### Get table statistics
+
+Use the `mysql-stats` tool to retrieve comprehensive statistics for a table:
+
+```
+mysql-stats employees
+```
+
+This returns:
+- Table and index statistics
+- Column statistics
+- Row count and data size
+
+## Step 4: Execute your first query
+
+All queries are executed within READ ONLY transactions to prevent data modification.
+
+### Query syntax
+
+Use the `mysql-query` tool with SQL:
+
+```sql
+SELECT * FROM employees WHERE department_id = 10 LIMIT 5
+```
+
+### Example queries
+
+**Find all tables in the database:**
+```sql
+SHOW TABLES
+```
+
+**Count records in a table:**
+```sql
+SELECT COUNT(*) FROM employees
+```
+
+**Join multiple tables:**
+```sql
+SELECT e.employee_id, e.first_name, e.last_name, d.department_name
+FROM employees e
+JOIN departments d ON e.department_id = d.department_id
+LIMIT 10
+```
+
+## Step 5: Analyze query performance
+
+Use the `mysql-explain` tool to understand query execution plans.
+
+### Generate an explain plan
+
+```sql
+SELECT * FROM employees WHERE email = 'test@example.com'
+```
+
+The explain plan shows:
+- Table access methods
+- Index usage
+- Estimated rows scanned
+- Join order
+
+### Optimize your queries
+
+Based on the explain plan, you can:
+- Add missing indexes
+- Rewrite inefficient queries
+- Identify full table scans
+
+## Step 6: Generate a performance report
+
+The `mysql-awr` tool generates a comprehensive performance report similar to Oracle's Automatic Workload Repository.
+
+### Run the AWR report
+
+```
+mysql-awr
+```
+
+The report includes:
+- Database statistics and uptime
+- InnoDB metrics (buffer pool, log writes)
+- Top queries by execution time (requires Performance Schema)
+- Table and index statistics
+- Connection information
+- Optimization recommendations
+
+<Note>
+For optimal performance monitoring, ensure the Performance Schema is enabled:
+
+```ini
+[mysqld]
+performance_schema = ON
+```
+</Note>
+
+## Step 7: Integrate with Claude Desktop
+
+Connect the MCP server to Claude Desktop for AI-powered database analysis.
+
+<Steps>
+  <Step title="Locate your configuration file">
+    Find `claude_desktop_config.json` in your system:
+    - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+    - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+  </Step>
+
+  <Step title="Add the server configuration">
+    <CodeGroup>
+    ```json Docker
+    {
+      "mcpServers": {
+        "mysql": {
+          "command": "docker",
+          "args": [
+            "run", 
+            "-i", 
+            "--rm",
+            "-e", "MYSQL_USER=myuser",
+            "-e", "MYSQL_PASSWORD=mypassword",
+            "mochoa/mcp-mysql"
+          ]
+        }
+      }
+    }
+    ```
+
+    ```json NPX
+    {
+      "mcpServers": {
+        "mysql": {
+          "command": "npx",
+          "args": [
+            "-y",
+            "@marcelo-ochoa/server-mysql"
+          ],
+          "env": {
+            "MYSQL_USER": "myuser",
+            "MYSQL_PASSWORD": "mypassword"
+          }
+        }
+      }
+    }
+    ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Restart Claude Desktop">
+    Restart the Claude Desktop app to load the new configuration.
+  </Step>
+
+  <Step title="Start querying">
+    You can now ask Claude to:
+    - Connect to your database
+    - Query tables and analyze data
+    - Generate performance reports
+    - Optimize queries based on explain plans
+  </Step>
+</Steps>
+
+## Example prompts for Claude
+
+Once integrated with Claude Desktop, try these prompts:
+
+**Connect to database:**
+```
+Connect to host.docker.internal:3306/mydb using root as user and password123 as password using mysql mcp server
+```
+
+**Explore schema:**
+```
+Query all tables in the current database
+```
+
+**Analyze data:**
+```
+Show me the top 10 employees by salary
+```
+
+**Performance analysis:**
+```
+Get stats for the users table
+```
+
+**Query optimization:**
+```
+Explain the execution plan for: SELECT * FROM users WHERE email = 'test@example.com'
+```
+
+**Generate report:**
+```
+Generate a performance report using mysql-awr
+```
+
+**Get recommendations:**
+```
+Based on the AWR report, what optimizations would you recommend?
+```
+
+## Try other servers
+
+Now that you've mastered the MySQL server, try the other servers in this collection:
+
+<CardGroup cols={2}>
+  <Card title="Oracle Database" icon="database">
+    Connect to Oracle databases with AWR reporting and explain plans
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    Connection example:
+    ```
+    orcl-connect host.docker.internal:1521/freepdb1 hr hr_2025
+    ```
+  </Card>
+  
+  <Card title="PostgreSQL" icon="database">
+    Query PostgreSQL with performance analysis and pg_stat_statements integration
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+    Connection example:
+    ```
+    pg-connect host.docker.internal:5432/postgres postgres pg_2025
+    ```
+  </Card>
+  
+  <Card title="MikroTik RouterOS" icon="router">
+    Monitor MikroTik routers with security audits and performance reports
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    Connection example:
+    ```
+    mk-connect 192.168.88.1 admin mypassword
+    ```
+  </Card>
+  
+  <Card title="QNAP NAS" icon="hard-drive">
+    Monitor QNAP NAS devices and manage files
+    
+    Connection example:
+    ```
+    qnap-connect http://10.1.1.241:8080 admin password
+    ```
+  </Card>
+</CardGroup>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+## Common issues
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+### Connection failed
 
-### Step 3: Go live
+**Problem**: Unable to connect to the database.
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+**Solutions**:
+- Verify the database is running and accessible
+- Check credentials in environment variables
+- Use `host.docker.internal` instead of `localhost` when using Docker on macOS
+- Ensure firewall rules allow connections
+
+### Permission denied
+
+**Problem**: Query execution fails with permission errors.
+
+**Solutions**:
+- Verify the database user has SELECT privileges
+- For explain plans (Oracle), grant `SELECT_CATALOG_ROLE`
+- For AWR reports (Oracle), grant `EXECUTE ON DBMS_WORKLOAD_REPOSITORY`
+
+### Performance Schema not available (MySQL)
+
+**Problem**: AWR report shows limited query statistics.
+
+**Solution**: Enable Performance Schema in MySQL configuration:
+
+```ini
+[mysqld]
+performance_schema = ON
+```
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
-
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Installation guide" icon="download" href="/installation">
+    View detailed installation instructions for all servers
+  </Card>
+  <Card title="Introduction" icon="book" href="/introduction">
+    Learn about all available servers and their features
+  </Card>
 </CardGroup>
-
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>

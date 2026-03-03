@@ -1,0 +1,243 @@
+---
+title: MikroTik RouterOS API
+description: MCP server for monitoring and managing MikroTik routers using the RouterOS API with comprehensive system reporting and security auditing
+---
+
+A read-only MCP server implementation for interacting with MikroTik routers using the RouterOS API. Monitor interfaces, bridges, routing tables, and perform security audits on your network infrastructure.
+
+<Note>
+  This server is read-only and does not modify router configurations. It supports both plain TCP (8728) and secure SSL/TLS (8729) connections.
+</Note>
+
+## Features
+
+- **Connection Management**: Connect and authenticate with MikroTik routers
+- **Resource Monitoring**: Dynamic access to interfaces, bridges, and routing tables via MCP resources
+- **Protocol Support**: Works with both plain TCP (8728) and secure SSL/TLS (8729)
+- **Modern & Legacy Login**: Supports RouterOS versions prior to and after v6.43
+- **Security Auditing**: Automatic Workload Repository (AWR) style reports with performance metrics and security recommendations
+
+## Installation
+
+<CodeGroup>
+```bash NPM
+npx -y @marcelo-ochoa/server-mikrotik
+```
+
+```bash Docker
+docker pull mochoa/mcp-mikrotik
+```
+</CodeGroup>
+
+## Configuration
+
+### Environment Variables
+
+- `MK_USER`: MikroTik username (required if providing host at startup)
+- `MK_PASSWORD`: MikroTik password (required if providing host at startup)
+
+### Startup Arguments
+
+1. `host`: (Optional) IP address of the router
+2. `secure`: (Optional) Use SSL/TLS. Default is `false`
+
+If these are provided, the server will attempt to connect automatically on startup using `MK_USER` and `MK_PASSWORD`.
+
+### Claude Desktop Setup
+
+<CodeGroup>
+```json NPM
+{
+  "mcpServers": {
+    "mikrotik": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@marcelo-ochoa/server-mikrotik",
+        "192.168.88.1"
+      ],
+      "env": {
+        "MK_USER": "ai_agent",
+        "MK_PASSWORD": "ai_password"
+      }
+    }
+  }
+}
+```
+
+```json Docker
+{
+  "mcpServers": {
+    "mikrotik": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "MK_USER=admin",
+        "-e",
+        "MK_PASSWORD=password",
+        "mochoa/mcp-mikrotik",
+        "192.168.88.1",
+        "false"
+      ]
+    }
+  }
+}
+```
+</CodeGroup>
+
+<Note>
+  Arguments and environment variables are optional. You can connect later using the `mk-connect` tool.
+</Note>
+
+## Resources
+
+The server exposes MikroTik entities as MCP resources for direct inspection:
+
+### Interfaces
+
+```
+mikrotik://interface/{name}
+```
+
+Example: `mikrotik://interface/ether1`
+
+### Bridges
+
+```
+mikrotik://bridge/{name}
+```
+
+Example: `mikrotik://bridge/bridge1`
+
+### Bridge Ports
+
+```
+mikrotik://bridge/{bridge_name}/{interface_name}
+```
+
+Example: `mikrotik://bridge/bridge1/ether2`
+
+### IP Routes
+
+```
+mikrotik://route/{id}
+```
+
+Example: `mikrotik://route/400AF317`
+
+<Note>
+  Internal IDs are used for routing entries.
+</Note>
+
+## Tools
+
+### mk-connect
+
+Connects to a router.
+
+**Parameters:**
+- `host`: IP address of the router
+- `user`: Username
+- `password`: Password
+- `secure`: (Optional) Use SSL/TLS. Default is `false`
+
+**Example:**
+```
+mk-connect 192.168.88.1 admin mypassword
+```
+
+### mk-report
+
+Generates a comprehensive system report.
+
+Aggregates system resources, health, routerboard info, and interface traffic statistics (using `monitor-traffic` once).
+
+**Parameters:** None
+
+### mk-get
+
+Returns a JSON array with the result of a MikroTik API `/print` command.
+
+**Parameters:**
+- `sentence`: The API path (e.g., `/ip/route`, `/interface`, `/log`)
+
+<Note>
+  The server automatically ensures the path starts with `/` and ends with `/print`.
+</Note>
+
+### mk-awr
+
+Generates an Automatic Workload Repository (AWR) style report for MikroTik.
+
+Includes performance metrics, security audit, and recommendations.
+
+**Parameters:** None
+
+## Prompts
+
+The server provides several pre-defined prompts for common tasks:
+
+- **mk-connect: Connect to MikroTik**: Helps you establish a connection to your router
+- **mk-report: System Report**: Requests a full system status and traffic report
+- **mk-get-route: Routing Table**: Specifically asks for the current IP routing table
+- **mk-get-interface: List Interfaces**: Specifically asks for all configured interfaces
+- **mk-get-log: View Logs**: Requests the latest system log entries
+- **mk-awr: Security Audit**: Initiates a full performance and security audit of the router
+
+## Security Audit Features
+
+Use `mk-get` with the following API paths to find potential security risks and unused entities:
+
+- `interface`
+- `ip/address`
+- `ip/route`
+- `ip/route/rules`
+- `ip/firewall/address-list`
+- `ip/firewall/filter`
+- `ip/firewall/nat`
+- `ip/firewall/mangle`
+
+## Local Development
+
+<Steps>
+  <Step title="Navigate to the mikrotik directory">
+    ```bash
+    cd src/mikrotik
+    ```
+  </Step>
+  
+  <Step title="Install dependencies">
+    ```bash
+    npm install
+    ```
+  </Step>
+  
+  <Step title="Build the project">
+    ```bash
+    npm run build
+    ```
+  </Step>
+</Steps>
+
+## Docker Usage
+
+<Steps>
+  <Step title="Build the container">
+    ```bash
+    docker build -t mochoa/mcp-mikrotik -f src/mikrotik/Dockerfile .
+    ```
+  </Step>
+  
+  <Step title="Run the container">
+    ```bash
+    docker run -i --rm -e MK_USER=admin -e MK_PASSWORD=mypassword mochoa/mcp-mikrotik 192.168.88.1
+    ```
+  </Step>
+</Steps>
+
+## License
+
+Apache License, Version 2.0 for new contributions, with existing code under MIT.

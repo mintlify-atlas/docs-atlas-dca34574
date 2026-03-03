@@ -1,0 +1,319 @@
+---
+title: PostgreSQL Tools
+description: API reference for MCP PostgreSQL server tools - query execution, explain plans, table statistics, connection management, and performance reports
+---
+
+The PostgreSQL MCP server provides read-only access to PostgreSQL databases, enabling LLMs to inspect schemas, execute queries, and analyze performance.
+
+## pg-query
+
+Execute read-only SQL queries against the connected PostgreSQL database.
+
+<ParamField path="sql" type="string" required>
+  The SQL query to execute
+</ParamField>
+
+<Note>
+  All queries are executed within a READ ONLY transaction for safety.
+</Note>
+
+### Example Usage
+
+```sql
+SELECT id, name, email, created_at 
+FROM users 
+WHERE status = 'active'
+LIMIT 10
+```
+
+### Response
+
+Returns query results as a JSON array of row objects:
+
+```json
+[
+  {
+    "id": 1,
+    "name": "John Doe",
+    "email": "john@example.com",
+    "created_at": "2025-01-15T10:30:00Z"
+  },
+  {
+    "id": 2,
+    "name": "Jane Smith",
+    "email": "jane@example.com",
+    "created_at": "2025-02-01T14:20:00Z"
+  }
+]
+```
+
+## pg-explain
+
+Generate execution plan for SQL queries against the connected PostgreSQL database.
+
+<ParamField path="sql" type="string" required>
+  The SQL query to explain
+</ParamField>
+
+### Example Usage
+
+```sql
+SELECT * FROM users WHERE email = 'john@example.com'
+```
+
+### Response
+
+Returns the PostgreSQL query execution plan showing access methods, costs, and row estimates:
+
+```
+Index Scan using users_email_idx on users  (cost=0.42..8.44 rows=1 width=120)
+  Index Cond: (email = 'john@example.com'::text)
+```
+
+For more detailed analysis:
+
+```json
+{
+  "Plan": {
+    "Node Type": "Index Scan",
+    "Scan Direction": "Forward",
+    "Index Name": "users_email_idx",
+    "Relation Name": "users",
+    "Startup Cost": 0.42,
+    "Total Cost": 8.44,
+    "Plan Rows": 1,
+    "Plan Width": 120
+  }
+}
+```
+
+## pg-stats
+
+Get comprehensive statistics for a specific table in the connected database.
+
+<ParamField path="name" type="string" required>
+  The name of the table to retrieve statistics for
+</ParamField>
+
+### Example Usage
+
+```
+pg-stats users
+```
+
+### Response
+
+Returns detailed table statistics including:
+
+```json
+{
+  "table_name": "users",
+  "row_count": 15420,
+  "table_size": "1024 kB",
+  "index_size": "512 kB",
+  "total_size": "1536 kB",
+  "last_vacuum": "2025-03-01T08:30:00Z",
+  "last_analyze": "2025-03-01T08:30:00Z",
+  "n_dead_tup": 42,
+  "n_mod_since_analyze": 15
+}
+```
+
+## pg-connect
+
+Connect to a PostgreSQL database with specified credentials.
+
+<ParamField path="connectionString" type="string" required>
+  PostgreSQL connection string in format `postgresql://host:port/dbname` or `host:port/dbname` (credentials should not be included in the connection string)
+</ParamField>
+
+<ParamField path="user" type="string" required>
+  PostgreSQL username
+</ParamField>
+
+<ParamField path="password" type="string" required>
+  PostgreSQL password
+</ParamField>
+
+### Example Usage
+
+```
+pg-connect host.docker.internal:5432/postgres postgres pg_2025
+```
+
+### Supported Connection Formats
+
+- `postgresql://host:port/dbname`
+- `host:port/dbname`
+
+### SSL/TLS Encryption
+
+To enable SSL encryption, append `?sslmode=require` to the connection string:
+
+```
+pg-connect postgresql://host:port/dbname?sslmode=require user password
+```
+
+Alternatively, set the `PG_SSL` environment variable to `true`.
+
+<Note>
+  When using Docker on macOS, use `host.docker.internal` to connect to databases running on localhost.
+</Note>
+
+### Response
+
+```json
+{
+  "success": true,
+  "message": "Connected to PostgreSQL database",
+  "database": "postgres",
+  "user": "postgres",
+  "server_version": "15.2"
+}
+```
+
+## pg-awr
+
+Generate a comprehensive PostgreSQL performance report similar to Oracle AWR.
+
+<Note>
+  This tool requires the `pg_stat_statements` extension for detailed query statistics. The report will still generate without it, but with limited query-level data.
+</Note>
+
+### Example Usage
+
+```
+pg-awr
+```
+
+### Response
+
+Returns a comprehensive performance report including:
+
+**Database Statistics:**
+- Connection information and uptime
+- Transaction and commit/rollback rates
+- Cache hit ratios
+- Database size and growth
+
+**Top Queries (requires pg_stat_statements):**
+- Queries by total execution time
+- Queries by number of calls
+- Queries by mean execution time
+- I/O statistics per query
+
+**Table Statistics:**
+- Sequential vs index scan ratios
+- Dead tuple counts
+- Last vacuum and analyze timestamps
+- Table and index sizes
+
+**Index Statistics:**
+- Index usage patterns
+- Index sizes and scan counts
+
+**Optimization Recommendations:**
+- Missing indexes
+- Tables needing vacuum
+- Configuration suggestions
+
+```
+PostgreSQL Performance Report (AWR-style)
+==========================================
+
+Database: postgres
+Server Version: PostgreSQL 15.2
+Report Time: 2025-03-03 10:30:00
+Uptime: 15 days, 4 hours, 23 minutes
+
+Top SQL by Total Time
+-------------------------------------------------------------------------
+Total Time (ms) | Calls  | Mean (ms) | Query
+-------------------------------------------------------------------------
+      45,230.5  | 12,450 |      3.63 | SELECT * FROM orders WHERE...
+      32,108.2  |  8,920 |      3.60 | UPDATE inventory SET stock...
+      28,945.1  | 45,200 |      0.64 | SELECT id, name FROM products...
+
+Cache Hit Ratio: 99.2%
+Transaction Rate: 1,250 tps
+Commit Ratio: 98.5%
+
+Recommendations:
+- Consider adding index on orders(customer_id, created_at)
+- Table 'inventory' needs VACUUM (15,420 dead tuples)
+- Increase shared_buffers for better cache performance
+```
+
+## Resources
+
+The server automatically provides schema information for all tables in the connected database:
+
+### Table Schemas
+
+**URI Format:** `postgres://<dbname>/<table>/schema`
+
+Returns JSON schema information including:
+- Column names and data types
+- Constraints and indexes
+- Automatically discovered from database metadata
+
+```json
+{
+  "table_name": "users",
+  "schema": "public",
+  "columns": [
+    {
+      "name": "id",
+      "type": "integer",
+      "nullable": false,
+      "default": "nextval('users_id_seq'::regclass)",
+      "primary_key": true
+    },
+    {
+      "name": "email",
+      "type": "character varying(255)",
+      "nullable": false,
+      "unique": true
+    },
+    {
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "nullable": true,
+      "default": "now()"
+    }
+  ],
+  "indexes": [
+    {
+      "name": "users_pkey",
+      "columns": ["id"],
+      "unique": true,
+      "primary": true
+    },
+    {
+      "name": "users_email_idx",
+      "columns": ["email"],
+      "unique": true
+    }
+  ]
+}
+```
+
+## Configuration
+
+The PostgreSQL server supports two methods for credential management:
+
+### Environment Variables
+
+```bash
+export PG_USER=myuser
+export PG_PASSWORD=mypassword
+export PG_SSL=true  # Optional: enable SSL
+```
+
+### Runtime Connection
+
+Use the `pg-connect` tool to establish connections dynamically without environment variables.
+
+<Note>
+  Connection strings should contain only host, port, and database information. Credentials are always passed separately via environment variables or the connect tool.
+</Note>

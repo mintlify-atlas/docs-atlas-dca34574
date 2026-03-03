@@ -1,0 +1,436 @@
+---
+title: Security Best Practices
+description: Security guidelines for deploying and using MCP servers including read-only transactions, credential management, and network security
+---
+
+## Overview
+
+<Warning>
+The servers in this repository are **reference implementations** intended for educational purposes. They demonstrate MCP features and SDK usage but are not production-ready solutions. Evaluate your security requirements and implement appropriate safeguards based on your threat model.
+</Warning>
+
+This guide covers security best practices for deploying MCP servers safely and securely.
+
+## Read-Only Access
+
+### Oracle Database
+
+All queries executed through the Oracle MCP server are run within READ ONLY transactions:
+
+```sql
+-- Automatic transaction mode
+SET TRANSACTION READ ONLY;
+```
+
+**Tools with read-only enforcement:**
+
+- `orcl-query` - Executes SELECT queries only
+- `orcl-explain` - Analyzes query execution plans
+- `orcl-stats` - Retrieves table statistics
+- `orcl-awr` - Generates Automatic Workload Repository reports
+
+<Note>
+The `orcl-awr` tool requires `SELECT_CATALOG_ROLE` and `EXECUTE` privilege on `DBMS_WORKLOAD_REPOSITORY` package.
+</Note>
+
+### MySQL Database
+
+The MySQL MCP server enforces read-only transactions for all query operations:
+
+```sql
+-- All queries run in read-only mode
+START TRANSACTION READ ONLY;
+```
+
+**Read-only tools:**
+
+- `mysql-query` - Executes SELECT statements only
+- `mysql-explain` - Returns execution plans in JSON format
+- `mysql-stats` - Provides table, index, and column statistics
+- `mysql-awr` - Generates performance reports (requires `performance_schema`)
+
+### MikroTik RouterOS
+
+The MikroTik MCP server is designed as a **read-only** interface:
+
+- All API calls use `/print` commands
+- No write operations (`/add`, `/set`, `/remove`) are supported
+- Resources provide inspection capabilities only
+
+<Warning>
+Even though the server is read-only, you should still create a dedicated user with minimal privileges for MCP access.
+</Warning>
+
+## Credential Management
+
+### Environment Variables
+
+Use environment variables instead of hardcoding credentials:
+
+```json
+// Good - Uses environment variables
+{
+  "mcpServers": {
+    "mysql": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm"],
+      "env": {
+        "MYSQL_USER": "readonly_user",
+        "MYSQL_PASSWORD": "secure_password"
+      }
+    }
+  }
+}
+```
+
+```json
+// Bad - Credentials in args
+{
+  "mcpServers": {
+    "mysql": {
+      "command": "npx",
+      "args": ["-y", "@marcelo-ochoa/server-mysql", 
+               "--user=admin", "--password=secret123"]
+    }
+  }
+}
+```
+
+### Connection Strings Without Credentials
+
+Always separate credentials from connection strings:
+
+<Accordion title="Oracle Example">
+  ```bash
+  # Correct - Credentials via environment
+  docker run -i --rm \
+    -e ORACLE_USER=readonly \
+    -e ORACLE_PASSWORD=secure123 \
+    mochoa/mcp-oracle \
+    host.docker.internal:1521/freepdb1
+
+  # Incorrect - Credentials in connection string
+  # oracle://readonly:secure123@host:1521/freepdb1
+  ```
+</Accordion>
+
+<Accordion title="MySQL Example">
+  ```bash
+  # Correct
+  docker run -i --rm \
+    -e MYSQL_USER=readonly \
+    -e MYSQL_PASSWORD=secure123 \
+    mochoa/mcp-mysql \
+    host.docker.internal:3306/mydb
+
+  # Incorrect
+  # mysql://readonly:secure123@host:3306/mydb
+  ```
+</Accordion>
+
+### Runtime Connection Tools
+
+For enhanced security, use runtime connection tools instead of startup credentials:
+
+```bash
+# Start server without credentials
+docker run -i --rm mochoa/mcp-oracle
+
+# Connect at runtime using tool
+orcl-connect host.docker.internal:1521/freepdb1 readonly_user secure_password
+```
+
+**Benefits:**
+
+- Credentials not stored in configuration files
+- Easier credential rotation
+- Better audit trail
+- Reduced exposure in logs
+
+## Database User Permissions
+
+### Oracle Recommended Permissions
+
+Create a dedicated read-only user for MCP access:
+
+```sql
+-- Create read-only user
+CREATE USER mcp_readonly IDENTIFIED BY secure_password;
+
+-- Grant minimal permissions
+GRANT CONNECT TO mcp_readonly;
+GRANT SELECT ON schema_name.* TO mcp_readonly;
+
+-- Optional: For explain plans
+GRANT SELECT_CATALOG_ROLE TO mcp_readonly;
+
+-- Optional: For AWR reports
+GRANT SELECT_CATALOG_ROLE TO mcp_readonly;
+GRANT EXECUTE ON DBMS_WORKLOAD_REPOSITORY TO mcp_readonly;
+```
+
+### MySQL Recommended Permissions
+
+Create a restricted user with read-only access:
+
+```sql
+-- Create read-only user
+CREATE USER 'mcp_readonly'@'%' IDENTIFIED BY 'secure_password';
+
+-- Grant SELECT only
+GRANT SELECT ON mydb.* TO 'mcp_readonly'@'%';
+
+-- Optional: For performance schema access (AWR reports)
+GRANT SELECT ON performance_schema.* TO 'mcp_readonly'@'%';
+
+-- Apply changes
+FLUSH PRIVILEGES;
+```
+
+### MikroTik Recommended Permissions
+
+Create a dedicated user with read-only API access:
+
+```routeros
+# Create read-only user
+/user add name=mcp_readonly password=secure_password group=read
+
+# Configure API access
+/ip service set api address=192.168.88.0/24
+/ip service set api-ssl address=192.168.88.0/24
+```
+
+<Warning>
+Never use administrative or root accounts for MCP server connections. Always create dedicated accounts with minimal necessary privileges.
+</Warning>
+
+## Network Security
+
+### Firewall Configuration
+
+<Steps>
+  <Step title="Restrict Database Access">
+    Configure firewalls to allow connections only from trusted MCP client IPs:
+    
+    ```bash
+    # MySQL example
+    sudo ufw allow from 192.168.1.100 to any port 3306
+    
+    # Oracle example
+    sudo ufw allow from 192.168.1.100 to any port 1521
+    ```
+  </Step>
+  
+  <Step title="Use VPN or SSH Tunnels">
+    For remote access, use VPN or SSH tunnels instead of exposing databases directly:
+    
+    ```bash
+    # SSH tunnel example
+    ssh -L 3306:localhost:3306 user@remote-server
+    ```
+  </Step>
+  
+  <Step title="Enable SSL/TLS">
+    Use encrypted connections when supported:
+    
+    ```bash
+    # MikroTik with SSL
+    docker run -i --rm \
+      -e MK_USER=admin \
+      -e MK_PASSWORD=pass \
+      mochoa/mcp-mikrotik \
+      192.168.88.1 \
+      true
+    ```
+  </Step>
+</Steps>
+
+### MikroTik Protocol Security
+
+- **Plain TCP (Port 8728)**: Unencrypted - use only on trusted networks
+- **SSL/TLS (Port 8729)**: Encrypted - recommended for remote access
+
+```bash
+# Enable API-SSL on MikroTik
+/ip service enable api-ssl
+/ip service set api-ssl port=8729
+/ip service set api-ssl certificate=your-certificate
+```
+
+## Docker Security
+
+### Container Isolation
+
+```bash
+# Run with read-only root filesystem
+docker run -i --rm --read-only mochoa/mcp-mysql
+
+# Drop unnecessary capabilities
+docker run -i --rm --cap-drop=ALL mochoa/mcp-mysql
+
+# Use non-root user (if image supports)
+docker run -i --rm --user 1000:1000 mochoa/mcp-mysql
+```
+
+### Secrets Management
+
+For production deployments, use Docker secrets or external secret managers:
+
+```bash
+# Using Docker secrets
+echo "mypassword" | docker secret create mysql_password -
+
+docker service create \
+  --name mcp-mysql \
+  --secret mysql_password \
+  -e MYSQL_PASSWORD_FILE=/run/secrets/mysql_password \
+  mochoa/mcp-mysql
+```
+
+### Network Segmentation
+
+```bash
+# Create isolated network
+docker network create --internal mcp-network
+
+# Run containers on isolated network
+docker run -i --rm --network mcp-network mochoa/mcp-mysql
+```
+
+## Audit and Monitoring
+
+### Enable Database Audit Logs
+
+<Accordion title="Oracle Auditing">
+  ```sql
+  -- Enable unified auditing
+  AUDIT SELECT ON schema_name.sensitive_table BY mcp_readonly;
+  
+  -- Review audit logs
+  SELECT * FROM UNIFIED_AUDIT_TRAIL 
+  WHERE DBUSERNAME = 'MCP_READONLY';
+  ```
+</Accordion>
+
+<Accordion title="MySQL Auditing">
+  ```sql
+  -- Enable general query log (development only)
+  SET GLOBAL general_log = 'ON';
+  SET GLOBAL log_output = 'TABLE';
+  
+  -- Review query log
+  SELECT * FROM mysql.general_log 
+  WHERE user_host LIKE '%mcp_readonly%';
+  ```
+</Accordion>
+
+<Accordion title="MikroTik Logging">
+  ```routeros
+  # Enable API logging
+  /system logging add topics=api action=memory
+  
+  # View logs
+  /log print where topics~"api"
+  ```
+</Accordion>
+
+### Monitor MCP Server Activity
+
+Review MCP server logs for suspicious activity:
+
+```bash
+# Docker logs
+docker logs container-name
+
+# Filter for authentication attempts
+docker logs container-name | grep -i "auth\|connect\|error"
+```
+
+## Configuration File Security
+
+### File Permissions
+
+```bash
+# Restrict access to configuration files
+chmod 600 ~/.config/claude/claude_desktop_config.json
+chmod 600 ~/.vscode/mcp.json
+chmod 600 ~/.gemini/antigravity/mcp_config.json
+```
+
+### Avoid Committing Secrets
+
+Add configuration files to `.gitignore`:
+
+```gitignore
+# MCP configurations with secrets
+clause_desktop_config.json
+mcp_config.json
+.vscode/mcp.json
+.env
+```
+
+## SSL/TLS Certificates
+
+### MikroTik Certificate Setup
+
+```routeros
+# Generate self-signed certificate
+/certificate add name=mcp-cert common-name=mcp.local \
+  key-size=2048 days-valid=365
+/certificate sign mcp-cert
+
+# Apply to API-SSL service
+/ip service set api-ssl certificate=mcp-cert
+```
+
+### MySQL SSL Configuration
+
+```ini
+[mysqld]
+ssl-ca=/path/to/ca.pem
+ssl-cert=/path/to/server-cert.pem
+ssl-key=/path/to/server-key.pem
+require_secure_transport=ON
+```
+
+## Incident Response
+
+<Steps>
+  <Step title="Detect Unauthorized Access">
+    Monitor database audit logs and MCP server logs for suspicious queries or connection attempts.
+  </Step>
+  
+  <Step title="Rotate Credentials">
+    Immediately change passwords for MCP users if compromise is suspected:
+    
+    ```sql
+    -- MySQL
+    ALTER USER 'mcp_readonly'@'%' IDENTIFIED BY 'new_secure_password';
+    
+    -- Oracle
+    ALTER USER mcp_readonly IDENTIFIED BY new_secure_password;
+    ```
+  </Step>
+  
+  <Step title="Review Access Logs">
+    Identify which resources were accessed and determine data exposure.
+  </Step>
+  
+  <Step title="Update Configuration">
+    Update all MCP client configurations with new credentials and restart services.
+  </Step>
+</Steps>
+
+## Security Checklist
+
+- [ ] Use dedicated read-only database users
+- [ ] Store credentials in environment variables, not configuration files
+- [ ] Enable SSL/TLS for network connections
+- [ ] Restrict network access with firewalls
+- [ ] Set appropriate file permissions on configuration files
+- [ ] Enable database audit logging
+- [ ] Monitor MCP server and database logs
+- [ ] Use Docker security features (read-only, cap-drop, etc.)
+- [ ] Implement secrets management for production
+- [ ] Regular credential rotation
+- [ ] Keep server images updated with security patches

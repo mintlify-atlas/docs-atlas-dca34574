@@ -1,0 +1,401 @@
+---
+title: MySQL Tools
+description: API reference for MCP MySQL server tools - query execution, explain plans, table statistics, connection management, and performance reports
+---
+
+The MySQL MCP server provides read-only access to MySQL databases, enabling LLMs to inspect schemas, execute queries, and analyze performance metrics.
+
+## mysql-query
+
+Execute read-only SQL queries against the connected MySQL database.
+
+<ParamField path="sql" type="string" required>
+  The SQL query to execute
+</ParamField>
+
+<Note>
+  All queries are executed within a READ ONLY transaction for safety.
+</Note>
+
+### Example Usage
+
+```sql
+SELECT id, username, email, status 
+FROM users 
+WHERE status = 'active' 
+ORDER BY created_at DESC 
+LIMIT 20
+```
+
+### Response
+
+Returns query results as a JSON array of row objects:
+
+```json
+[
+  {
+    "id": 42,
+    "username": "johndoe",
+    "email": "john@example.com",
+    "status": "active"
+  },
+  {
+    "id": 41,
+    "username": "janesmith",
+    "email": "jane@example.com",
+    "status": "active"
+  }
+]
+```
+
+## mysql-explain
+
+Generate execution plan for SQL queries against the connected MySQL database.
+
+<ParamField path="sql" type="string" required>
+  The SQL query to explain
+</ParamField>
+
+### Example Usage
+
+```sql
+SELECT * FROM users WHERE email = 'test@example.com'
+```
+
+### Response
+
+Returns the MySQL execution plan in JSON format showing access methods, key usage, and row estimates:
+
+```json
+[
+  {
+    "id": 1,
+    "select_type": "SIMPLE",
+    "table": "users",
+    "type": "ref",
+    "possible_keys": "email_idx",
+    "key": "email_idx",
+    "key_len": "767",
+    "ref": "const",
+    "rows": 1,
+    "filtered": 100.0,
+    "Extra": "Using index condition"
+  }
+]
+```
+
+### Execution Plan Fields
+
+- **type**: Access method (const, ref, range, index, ALL)
+- **key**: Index actually used
+- **rows**: Estimated number of rows examined
+- **filtered**: Percentage of rows filtered by condition
+- **Extra**: Additional execution information
+
+## mysql-stats
+
+Get comprehensive statistics for a table in the current connected database.
+
+<ParamField path="name" type="string" required>
+  The table name to retrieve statistics for
+</ParamField>
+
+### Example Usage
+
+```
+mysql-stats users
+```
+
+### Response
+
+Returns detailed table, index, and column statistics:
+
+```json
+{
+  "table_stats": {
+    "table_name": "users",
+    "engine": "InnoDB",
+    "row_count": 25680,
+    "avg_row_length": 156,
+    "data_length": 4005888,
+    "index_length": 2097152,
+    "data_free": 4194304,
+    "auto_increment": 25681,
+    "create_time": "2024-12-01T10:00:00Z",
+    "update_time": "2025-03-03T09:45:00Z",
+    "collation": "utf8mb4_unicode_ci"
+  },
+  "index_stats": [
+    {
+      "index_name": "PRIMARY",
+      "column_name": "id",
+      "cardinality": 25680,
+      "index_type": "BTREE",
+      "non_unique": 0
+    },
+    {
+      "index_name": "email_idx",
+      "column_name": "email",
+      "cardinality": 25680,
+      "index_type": "BTREE",
+      "non_unique": 0
+    }
+  ],
+  "column_stats": [
+    {
+      "column_name": "id",
+      "data_type": "int",
+      "is_nullable": "NO",
+      "column_key": "PRI",
+      "extra": "auto_increment"
+    },
+    {
+      "column_name": "email",
+      "data_type": "varchar(255)",
+      "is_nullable": "NO",
+      "column_key": "UNI",
+      "extra": ""
+    }
+  ]
+}
+```
+
+## mysql-connect
+
+Establish or reconnect to a MySQL database with new credentials.
+
+<ParamField path="connectionString" type="string" required>
+  MySQL connection string in format `host:port/dbname` or `mysql://host:port/dbname` (credentials should not be included)
+</ParamField>
+
+<ParamField path="user" type="string" required>
+  MySQL username
+</ParamField>
+
+<ParamField path="password" type="string" required>
+  MySQL password
+</ParamField>
+
+### Example Usage
+
+```
+mysql-connect host.docker.internal:3306/hr root my_2025
+```
+
+### Supported Connection Formats
+
+- `mysql://host:port/dbname`
+- `host:port/dbname`
+
+<Note>
+  When using Docker on macOS, use `host.docker.internal` to connect to databases running on localhost.
+</Note>
+
+### Response
+
+```json
+{
+  "success": true,
+  "message": "Connected to MySQL database",
+  "database": "hr",
+  "user": "root",
+  "server_version": "8.0.32"
+}
+```
+
+## mysql-awr
+
+Generate a comprehensive MySQL performance report similar to Oracle AWR.
+
+<Note>
+  For optimal performance monitoring, ensure that the Performance Schema is enabled in your MySQL configuration:
+  ```ini
+  [mysqld]
+  performance_schema = ON
+  ```
+  The AWR report will still generate without Performance Schema, but with limited query-level statistics.
+</Note>
+
+### Example Usage
+
+```
+mysql-awr
+```
+
+### Response
+
+Returns a comprehensive performance report including:
+
+**Database Statistics:**
+- Server version and uptime
+- Connection and thread information
+- Query execution rates
+- Cache hit ratios
+
+**InnoDB Metrics:**
+- Buffer pool usage and hit rate
+- Row operations (reads, inserts, updates, deletes)
+- Transaction and lock information
+- I/O statistics
+
+**Top Queries (requires performance_schema):**
+- Queries by total execution time
+- Queries by number of executions
+- Queries by average latency
+- Queries by rows examined
+
+**Table Statistics:**
+- Table sizes and row counts
+- Index usage patterns
+- Storage engine distribution
+
+**Index Statistics:**
+- Index sizes and cardinality
+- Unused indexes
+
+**Optimization Recommendations:**
+- Missing indexes
+- Inefficient queries
+- Configuration tuning suggestions
+- Table optimization opportunities
+
+```
+MySQL Performance Report (AWR-style)
+====================================
+
+Database: hr
+Server Version: MySQL 8.0.32
+Report Time: 2025-03-03 10:30:00
+Uptime: 30 days, 12 hours, 45 minutes
+
+Connection Statistics
+---------------------
+Max Connections: 151
+Current Connections: 42
+Threads Running: 8
+Total Queries: 15,420,680
+
+InnoDB Buffer Pool
+------------------
+Total Size: 1.00 GB
+Used: 856 MB (85.6%)
+Hit Rate: 99.4%
+Pages Read: 2,450,123
+Pages Written: 845,230
+
+Top SQL by Total Time (requires performance_schema)
+----------------------------------------------------
+Total Time (ms) | Executions | Avg (ms) | Query
+----------------------------------------------------
+      68,450.2  |     12,340 |     5.55 | SELECT o.*, c.name FROM orders o...
+      52,108.8  |    145,200 |     0.36 | UPDATE products SET stock = stock - ?...
+      41,250.5  |      8,920 |     4.62 | SELECT * FROM analytics WHERE date...
+
+Table Statistics
+----------------
+Table          | Rows    | Data Size | Index Size | Engine
+----------------------------------------------------------------
+orders         | 450,230 | 125.4 MB  | 45.2 MB    | InnoDB
+products       | 15,680  | 8.2 MB    | 3.1 MB     | InnoDB
+users          | 25,680  | 3.8 MB    | 2.0 MB     | InnoDB
+
+Recommendations:
+- Consider adding composite index on orders(customer_id, status, created_at)
+- Table 'analytics' has low index usage - review query patterns
+- Increase innodb_buffer_pool_size to 1.5G for better cache performance
+- Query at line 1 doing full table scan - add index on date column
+```
+
+## Resources
+
+The server automatically provides schema information for all tables in the connected database:
+
+### Table Schemas
+
+**URI Format:** `mysql://<database>/<table>/schema`
+
+Returns JSON schema information including:
+- Column names and data types
+- Constraints and indexes
+- Automatically discovered from MySQL metadata
+
+```json
+{
+  "table_name": "users",
+  "database": "hr",
+  "engine": "InnoDB",
+  "columns": [
+    {
+      "name": "id",
+      "type": "int",
+      "nullable": false,
+      "key": "PRI",
+      "default": null,
+      "extra": "auto_increment"
+    },
+    {
+      "name": "username",
+      "type": "varchar(50)",
+      "nullable": false,
+      "key": "UNI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "email",
+      "type": "varchar(255)",
+      "nullable": false,
+      "key": "UNI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created_at",
+      "type": "timestamp",
+      "nullable": true,
+      "key": "",
+      "default": "CURRENT_TIMESTAMP",
+      "extra": ""
+    }
+  ],
+  "indexes": [
+    {
+      "name": "PRIMARY",
+      "columns": ["id"],
+      "unique": true,
+      "type": "BTREE"
+    },
+    {
+      "name": "username_idx",
+      "columns": ["username"],
+      "unique": true,
+      "type": "BTREE"
+    },
+    {
+      "name": "email_idx",
+      "columns": ["email"],
+      "unique": true,
+      "type": "BTREE"
+    }
+  ]
+}
+```
+
+## Configuration
+
+The MySQL server supports two methods for credential management:
+
+### Environment Variables
+
+```bash
+export MYSQL_USER=myuser
+export MYSQL_PASSWORD=mypassword
+```
+
+### Runtime Connection
+
+Use the `mysql-connect` tool to establish connections dynamically without environment variables.
+
+<Note>
+  Connection strings should contain only host, port, and database information. Credentials are always passed separately via environment variables or the connect tool.
+</Note>

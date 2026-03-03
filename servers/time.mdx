@@ -1,0 +1,260 @@
+---
+title: Time
+description: Time and timezone conversion capabilities with automatic system timezone detection
+---
+
+The Time server provides current time queries and timezone conversion capabilities using IANA timezone names with automatic system timezone detection.
+
+## Overview
+
+This server enables LLMs to get accurate current time information and perform timezone conversions. It automatically detects the system timezone and supports all IANA timezone identifiers.
+
+## Features
+
+- Get current time in any timezone
+- Convert time between timezones
+- Automatic system timezone detection
+- IANA timezone database support
+- DST (Daylight Saving Time) awareness
+- Time difference calculations
+
+## Installation
+
+### Using uv (Recommended)
+
+```bash
+uvx mcp-server-time
+```
+
+### Using pip
+
+```bash
+pip install mcp-server-time
+```
+
+Run as a module:
+
+```bash
+python -m mcp_server_time
+```
+
+## Configuration
+
+### Claude Desktop
+
+Add to your `claude_desktop_config.json`:
+
+**Using uvx:**
+
+```json
+{
+  "mcpServers": {
+    "time": {
+      "command": "uvx",
+      "args": ["mcp-server-time"]
+    }
+  }
+}
+```
+
+**Using Docker:**
+
+```json
+{
+  "mcpServers": {
+    "time": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "-e", "LOCAL_TIMEZONE", "mcp/time"]
+    }
+  }
+}
+```
+
+**Using pip:**
+
+```json
+{
+  "mcpServers": {
+    "time": {
+      "command": "python",
+      "args": ["-m", "mcp_server_time"]
+    }
+  }
+}
+```
+
+### VS Code
+
+Add to your MCP settings (`mcp.json`):
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "time": {
+        "command": "uvx",
+        "args": ["mcp-server-time"]
+      }
+    }
+  }
+}
+```
+
+### Zed
+
+Add to your Zed `settings.json`:
+
+```json
+"context_servers": {
+  "mcp-server-time": {
+    "command": "uvx",
+    "args": ["mcp-server-time"]
+  }
+}
+```
+
+### Zencoder
+
+1. Go to the Zencoder menu (...)
+2. Select `Agent Tools`
+3. Click `Add Custom MCP`
+4. Add the configuration:
+
+```json
+{
+  "command": "uvx",
+  "args": ["mcp-server-time"]
+}
+```
+
+## Tools
+
+### get_current_time
+
+Get the current time in a specific timezone.
+
+**Input:**
+- `timezone` (string, required): IANA timezone name (e.g., `America/New_York`, `Europe/London`)
+
+**Example:**
+
+```json
+{
+  "name": "get_current_time",
+  "arguments": {
+    "timezone": "Europe/Warsaw"
+  }
+}
+```
+
+**Response:**
+
+```json
+{
+  "timezone": "Europe/Warsaw",
+  "datetime": "2024-01-01T13:00:00+01:00",
+  "is_dst": false
+}
+```
+
+### convert_time
+
+Convert time between timezones.
+
+**Inputs:**
+- `source_timezone` (string, required): Source IANA timezone name
+- `time` (string, required): Time in 24-hour format (HH:MM)
+- `target_timezone` (string, required): Target IANA timezone name
+
+**Example:**
+
+```json
+{
+  "name": "convert_time",
+  "arguments": {
+    "source_timezone": "America/New_York",
+    "time": "16:30",
+    "target_timezone": "Asia/Tokyo"
+  }
+}
+```
+
+**Response:**
+
+```json
+{
+  "source": {
+    "timezone": "America/New_York",
+    "datetime": "2024-01-01T16:30:00-05:00",
+    "is_dst": false
+  },
+  "target": {
+    "timezone": "Asia/Tokyo",
+    "datetime": "2024-01-02T06:30:00+09:00",
+    "is_dst": false
+  },
+  "time_difference": "+14.0h"
+}
+```
+
+## Customization
+
+### Override System Timezone
+
+By default, the server detects your system timezone automatically. You can override this with the `--local-timezone` argument:
+
+```json
+{
+  "command": "python",
+  "args": ["-m", "mcp_server_time", "--local-timezone=America/New_York"]
+}
+```
+
+<Info>
+The system timezone is used as the default when no timezone is specified in queries.
+</Info>
+
+## Example Questions
+
+Once configured, you can ask Claude:
+
+- "What time is it now?" (uses system timezone)
+- "What time is it in Tokyo?"
+- "When it's 4 PM in New York, what time is it in London?"
+- "Convert 9:30 AM Tokyo time to New York time"
+- "What's the time difference between Paris and Sydney?"
+
+## Debugging
+
+Use the MCP inspector to debug the server:
+
+**For uvx installations:**
+
+```bash
+npx @modelcontextprotocol/inspector uvx mcp-server-time
+```
+
+**For local development:**
+
+```bash
+cd path/to/servers/src/time
+npx @modelcontextprotocol/inspector uv run mcp-server-time
+```
+
+## Building
+
+Docker build:
+
+```bash
+cd src/time
+docker build -t mcp/time .
+```
+
+## Dependencies
+
+The server requires Python 3.10+ and includes:
+
+- `mcp>=1.23.0`: MCP SDK
+- `pydantic>=2.0.0`: Data validation
+- `tzdata>=2024.2`: Timezone database
+- `tzlocal>=5.3.1`: System timezone detection

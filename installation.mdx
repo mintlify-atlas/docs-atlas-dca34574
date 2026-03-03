@@ -1,0 +1,455 @@
+---
+title: Installation
+description: Install MCP servers using NPM or Docker
+---
+
+# Installation
+
+All MCP servers in this collection can be installed using either NPM or Docker. Choose the method that best fits your environment.
+
+## NPM installation
+
+Install servers directly from NPM using `npx` for immediate use without permanent installation.
+
+### Oracle Database
+
+```bash
+npx -y @marcelo-ochoa/server-oracle
+```
+
+With connection string:
+
+```bash
+npx -y @marcelo-ochoa/server-oracle host.docker.internal:1521/freepdb1
+```
+
+### PostgreSQL
+
+```bash
+npx -y @marcelo-ochoa/server-postgres
+```
+
+With connection string:
+
+```bash
+npx -y @marcelo-ochoa/server-postgres postgresql://localhost:5432/mydb
+```
+
+### MySQL
+
+```bash
+npx -y @marcelo-ochoa/server-mysql
+```
+
+With connection string:
+
+```bash
+npx -y @marcelo-ochoa/server-mysql host:3306/mydb
+```
+
+### MikroTik RouterOS
+
+```bash
+npx -y @marcelo-ochoa/server-mikrotik
+```
+
+With router IP:
+
+```bash
+npx -y @marcelo-ochoa/server-mikrotik 192.168.88.1
+```
+
+### QNAP NAS
+
+```bash
+npx -y @marcelo-ochoa/server-qnap
+```
+
+With NAS URL:
+
+```bash
+npx -y @marcelo-ochoa/server-qnap http://10.1.1.241:8080
+```
+
+## Docker installation
+
+Run servers as Docker containers for isolated and consistent environments.
+
+### Oracle Database
+
+Build the image:
+
+```bash
+docker build -t mochoa/mcp-oracle -f src/oracle/Dockerfile .
+```
+
+Run the container:
+
+```bash
+docker run -i --rm \
+  -e ORACLE_USER=myuser \
+  -e ORACLE_PASSWORD=mypassword \
+  mochoa/mcp-oracle \
+  host.docker.internal:1521/freepdb1
+```
+
+<Note>
+When running Docker on macOS, use `host.docker.internal` if the Oracle Database is running on the host network (e.g., localhost).
+</Note>
+
+### PostgreSQL
+
+Build the image:
+
+```bash
+docker build -t mochoa/mcp-postgres -f src/postgres/Dockerfile .
+```
+
+Run the container:
+
+```bash
+docker run -i --rm \
+  -e PG_USER=myuser \
+  -e PG_PASSWORD=mypassword \
+  mochoa/mcp-postgres \
+  postgresql://host.docker.internal:5432/mydb
+```
+
+### MySQL
+
+Build the image:
+
+```bash
+docker build -t mochoa/mcp-mysql -f src/mysql/Dockerfile .
+```
+
+Run the container:
+
+```bash
+docker run -i --rm \
+  -e MYSQL_USER=myuser \
+  -e MYSQL_PASSWORD=mypassword \
+  mochoa/mcp-mysql \
+  host.docker.internal:3306/mydb
+```
+
+### MikroTik RouterOS
+
+Build the image:
+
+```bash
+docker build -t mochoa/mcp-mikrotik -f src/mikrotik/Dockerfile .
+```
+
+Run the container:
+
+```bash
+docker run -i --rm \
+  -e MK_USER=admin \
+  -e MK_PASSWORD=mypassword \
+  mochoa/mcp-mikrotik \
+  192.168.88.1
+```
+
+For SSL/TLS connection, add `true` as the final argument:
+
+```bash
+docker run -i --rm \
+  -e MK_USER=admin \
+  -e MK_PASSWORD=mypassword \
+  mochoa/mcp-mikrotik \
+  192.168.88.1 \
+  true
+```
+
+### QNAP NAS
+
+Build the image:
+
+```bash
+docker build -t mochoa/mcp-qnap -f src/qnap/Dockerfile .
+```
+
+Run the container:
+
+```bash
+docker run -i --rm \
+  -e QNAP_USER=admin \
+  -e QNAP_PASSWORD=password \
+  mochoa/mcp-qnap \
+  http://10.1.1.241:8080
+```
+
+## Configuration with Claude Desktop
+
+Integrate servers with Claude Desktop by adding configuration to `claude_desktop_config.json`.
+
+### Oracle Database
+
+<CodeGroup>
+```json Docker
+{
+  "mcpServers": {
+    "oracle": {
+      "command": "docker",
+      "args": [
+        "run", 
+        "-i", 
+        "--rm",
+        "-e", "ORACLE_USER=myuser",
+        "-e", "ORACLE_PASSWORD=mypassword",
+        "mochoa/mcp-oracle",
+        "host.docker.internal:1521/freepdb1"
+      ]
+    }
+  }
+}
+```
+
+```json NPX
+{
+  "mcpServers": {
+    "oracle": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@marcelo-ochoa/server-oracle",
+        "localhost:1521/freepdb1"
+      ],
+      "env": {
+        "ORACLE_USER": "myuser",
+        "ORACLE_PASSWORD": "mypassword"
+      }
+    }
+  }
+}
+```
+</CodeGroup>
+
+### PostgreSQL
+
+<CodeGroup>
+```json Docker
+{
+  "mcpServers": {
+    "postgres": {
+      "command": "docker",
+      "args": [
+        "run", 
+        "-i", 
+        "--rm",
+        "-e", "PG_USER=myuser",
+        "-e", "PG_PASSWORD=mypassword",
+        "mochoa/mcp-postgres"
+      ]
+    }
+  }
+}
+```
+
+```json NPX
+{
+  "mcpServers": {
+    "postgres": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@marcelo-ochoa/server-postgres",
+        "postgresql://localhost:5432/mydb"
+      ],
+      "env": {
+        "PG_USER": "myuser",
+        "PG_PASSWORD": "mypassword"
+      }
+    }
+  }
+}
+```
+</CodeGroup>
+
+### MySQL
+
+<CodeGroup>
+```json Docker
+{
+  "mcpServers": {
+    "mysql": {
+      "command": "docker",
+      "args": [
+        "run", 
+        "-i", 
+        "--rm",
+        "-e", "MYSQL_USER=myuser",
+        "-e", "MYSQL_PASSWORD=mypassword",
+        "mochoa/mcp-mysql"
+      ]
+    }
+  }
+}
+```
+
+```json NPX
+{
+  "mcpServers": {
+    "mysql": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@marcelo-ochoa/server-mysql"
+      ],
+      "env": {
+        "MYSQL_USER": "myuser",
+        "MYSQL_PASSWORD": "mypassword"
+      }
+    }
+  }
+}
+```
+</CodeGroup>
+
+### MikroTik RouterOS
+
+<CodeGroup>
+```json Docker
+{
+  "mcpServers": {
+    "mikrotik": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e", "MK_USER=admin",
+        "-e", "MK_PASSWORD=password",
+        "mochoa/mcp-mikrotik",
+        "192.168.88.1",
+        "false"
+      ]
+    }
+  }
+}
+```
+
+```json NPX
+{
+  "mcpServers": {
+    "mikrotik": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@marcelo-ochoa/server-mikrotik",
+        "192.168.88.1"
+      ],
+      "env": {
+        "MK_USER": "ai_agent",
+        "MK_PASSWORD": "ai_password"
+      }
+    }
+  }
+}
+```
+</CodeGroup>
+
+### QNAP NAS
+
+<CodeGroup>
+```json Docker
+{
+  "mcpServers": {
+    "qnap": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e", "QNAP_USER=admin",
+        "-e", "QNAP_PASSWORD=password",
+        "mochoa/mcp-qnap",
+        "http://10.1.1.241:8080"
+      ]
+    }
+  }
+}
+```
+
+```json NPX
+{
+  "mcpServers": {
+    "qnap": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@marcelo-ochoa/server-qnap",
+        "http://10.1.1.241:8080"
+      ],
+      "env": {
+        "QNAP_USER": "admin",
+        "QNAP_PASSWORD": "password"
+      }
+    }
+  }
+}
+```
+</CodeGroup>
+
+## Environment variables
+
+All servers support environment variables for secure credential management.
+
+<Tabs>
+  <Tab title="Oracle">
+    - `ORACLE_USER` - Oracle username (optional if using `orcl-connect`)
+    - `ORACLE_PASSWORD` - Oracle password (optional if using `orcl-connect`)
+  </Tab>
+  <Tab title="PostgreSQL">
+    - `PG_USER` - PostgreSQL username (optional if using `pg-connect`)
+    - `PG_PASSWORD` - PostgreSQL password (optional if using `pg-connect`)
+    - `PG_SSL` - Enable SSL/TLS encryption (set to `true`)
+  </Tab>
+  <Tab title="MySQL">
+    - `MYSQL_USER` - MySQL username (optional if using `mysql-connect`)
+    - `MYSQL_PASSWORD` - MySQL password (optional if using `mysql-connect`)
+  </Tab>
+  <Tab title="MikroTik">
+    - `MK_USER` - MikroTik username (required if providing host at startup)
+    - `MK_PASSWORD` - MikroTik password (required if providing host at startup)
+  </Tab>
+  <Tab title="QNAP">
+    - `QNAP_USER` - QNAP admin username
+    - `QNAP_PASSWORD` - QNAP admin password
+  </Tab>
+</Tabs>
+
+<Warning>
+Never commit credentials to version control. Always use environment variables or secure credential management systems.
+</Warning>
+
+## Connection strings
+
+Connection strings should contain only the host, port, and database/service information without embedded credentials.
+
+### Supported formats
+
+**Oracle:**
+- `host:port/service_name`
+- `host:port:SID`
+
+**PostgreSQL:**
+- `postgresql://host:port/dbname`
+- `host:port/dbname`
+- Append `?sslmode=require` for SSL/TLS encryption
+
+**MySQL:**
+- `mysql://host:port/dbname`
+- `host:port/dbname`
+
+**MikroTik:**
+- IP address only (e.g., `192.168.88.1`)
+- Optional secure flag: `true` for SSL/TLS (port 8729), `false` for plain TCP (port 8728)
+
+**QNAP:**
+- Full URL with protocol (e.g., `http://10.1.1.241:8080`)
+
+## Next steps
+
+Now that you have installed the servers, follow the [Quick start guide](/quickstart) to connect to your first database and execute queries.

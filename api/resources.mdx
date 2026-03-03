@@ -1,0 +1,497 @@
+---
+title: 'MCP Resources'
+description: 'Overview of MCP Resources across all infrastructure servers'
+---
+
+# MCP Resources Overview
+
+MCP Resources provide a standardized way to expose structured data from infrastructure systems. Resources are addressable via URI schemes and return JSON-formatted data that AI models can inspect and analyze.
+
+## What are MCP Resources?
+
+Resources in the Model Context Protocol (MCP) are data endpoints that:
+
+- Use URI schemes for addressing (e.g., `oracle://`, `mysql://`, `mikrotik://`)
+- Return structured JSON data
+- Provide real-time access to system state
+- Enable AI models to monitor and analyze infrastructure
+- Work across multiple infrastructure types
+
+<Note>
+Resources are read-only. They provide inspection and monitoring capabilities without modifying the underlying systems.
+</Note>
+
+## Resource URI Patterns
+
+Each MCP server implements resources using a consistent URI pattern:
+
+```
+<protocol>://<target>/<resource-type>/<identifier>
+```
+
+**Components:**
+- `protocol`: The MCP server type (oracle, mysql, mikrotik, qnap)
+- `target`: Connection target (database name, host, etc.)
+- `resource-type`: Type of resource (table, disk, interface, etc.)
+- `identifier`: Specific resource identifier (name, ID, etc.)
+
+## Database Resources
+
+### Oracle Database Resources
+
+**URI Pattern:** `oracle://<USER>/<table>/schema`
+
+Provides JSON schema information for Oracle database tables.
+
+**Features:**
+- Column names and data types
+- Table metadata
+- Automatically discovered from Oracle metadata
+- Scoped to current connected user
+
+**Example:**
+```
+oracle://HR/EMPLOYEES/schema
+oracle://HR/DEPARTMENTS/schema
+oracle://SCOTT/EMP/schema
+```
+
+**Sample resource data:**
+```json
+{
+  "table_name": "EMPLOYEES",
+  "owner": "HR",
+  "columns": [
+    {
+      "name": "EMPLOYEE_ID",
+      "data_type": "NUMBER",
+      "nullable": "N",
+      "data_length": 22
+    },
+    {
+      "name": "FIRST_NAME",
+      "data_type": "VARCHAR2",
+      "nullable": "Y",
+      "data_length": 20
+    },
+    {
+      "name": "LAST_NAME",
+      "data_type": "VARCHAR2",
+      "nullable": "N",
+      "data_length": 25
+    }
+  ]
+}
+```
+
+**Use cases:**
+- Schema discovery and documentation
+- Query planning and validation
+- Data modeling and analysis
+- Automated code generation
+
+---
+
+### MySQL Database Resources
+
+**URI Pattern:** `mysql://<database>/<table>/schema`
+
+Provides JSON schema information for MySQL database tables.
+
+**Features:**
+- Column names and data types
+- Table metadata and constraints
+- Index information
+- Automatically discovered from MySQL metadata
+
+**Example:**
+```
+mysql://mydb/users/schema
+mysql://mydb/orders/schema
+mysql://analytics/events/schema
+```
+
+**Sample resource data:**
+```json
+{
+  "table_name": "users",
+  "database": "mydb",
+  "columns": [
+    {
+      "name": "id",
+      "type": "int",
+      "nullable": false,
+      "key": "PRI",
+      "default": null,
+      "extra": "auto_increment"
+    },
+    {
+      "name": "email",
+      "type": "varchar(255)",
+      "nullable": false,
+      "key": "UNI",
+      "default": null,
+      "extra": ""
+    },
+    {
+      "name": "created_at",
+      "type": "timestamp",
+      "nullable": false,
+      "key": "",
+      "default": "CURRENT_TIMESTAMP",
+      "extra": ""
+    }
+  ],
+  "indexes": [
+    {
+      "name": "PRIMARY",
+      "columns": ["id"],
+      "unique": true
+    },
+    {
+      "name": "email_unique",
+      "columns": ["email"],
+      "unique": true
+    }
+  ]
+}
+```
+
+**Use cases:**
+- Database schema documentation
+- Migration planning
+- Query optimization
+- ORM configuration
+
+## Network Resources
+
+### MikroTik RouterOS Resources
+
+MikroTik resources provide access to router configuration and state.
+
+#### Interfaces
+
+**URI Pattern:** `mikrotik://interface/<name>`
+
+Access detailed information about network interfaces.
+
+**Example:**
+```
+mikrotik://interface/ether1
+mikrotik://interface/ether2
+mikrotik://interface/wlan1
+mikrotik://interface/bridge1
+```
+
+**Sample resource data:**
+```json
+{
+  "name": "ether1",
+  "type": "ether",
+  "mtu": "1500",
+  "mac-address": "D4:CA:6D:12:34:56",
+  "running": "true",
+  "disabled": "false",
+  "tx-bytes": "1234567890",
+  "rx-bytes": "9876543210",
+  "tx-packets": "12345678",
+  "rx-packets": "98765432"
+}
+```
+
+#### Bridges
+
+**URI Pattern:** `mikrotik://bridge/<name>`
+
+Access bridge configuration and status.
+
+**Example:**
+```
+mikrotik://bridge/bridge1
+```
+
+**Sample resource data:**
+```json
+{
+  "name": "bridge1",
+  "mtu": "auto",
+  "ageing-time": "5m",
+  "priority": "0x8000",
+  "protocol-mode": "rstp",
+  "running": "true"
+}
+```
+
+#### Bridge Ports
+
+**URI Pattern:** `mikrotik://bridge/<bridge_name>/<interface_name>`
+
+Access information about interfaces within a bridge.
+
+**Example:**
+```
+mikrotik://bridge/bridge1/ether2
+mikrotik://bridge/bridge1/ether3
+```
+
+**Sample resource data:**
+```json
+{
+  "interface": "ether2",
+  "bridge": "bridge1",
+  "priority": "0x80",
+  "path-cost": "10",
+  "horizon": "none",
+  "disabled": "false"
+}
+```
+
+#### IP Routes
+
+**URI Pattern:** `mikrotik://route/<id>`
+
+Access routing table entries.
+
+<Note>
+Internal IDs are used for routing entries. Use the `mk-get /ip/route` tool to discover route IDs.
+</Note>
+
+**Example:**
+```
+mikrotik://route/400AF317
+mikrotik://route/500BF428
+```
+
+**Sample resource data:**
+```json
+{
+  ".id": "*400AF317",
+  "dst-address": "0.0.0.0/0",
+  "gateway": "192.168.88.1",
+  "distance": "1",
+  "scope": "30",
+  "target-scope": "10",
+  "active": "true",
+  "dynamic": "false",
+  "disabled": "false"
+}
+```
+
+**Use cases:**
+- Network topology discovery
+- Interface monitoring
+- Traffic analysis
+- Configuration validation
+
+## Storage Resources
+
+### QNAP NAS Resources
+
+QNAP resources provide real-time access to storage system health and status.
+
+#### Disks
+
+**URI Pattern:** `qnap://<host>:<port>/disk/<disk-id>`
+
+Access real-time disk health, model, serial number, and temperature.
+
+**Example:**
+```
+qnap://10.1.1.241:8080/disk/0
+qnap://10.1.1.241:8080/disk/1
+qnap://nas.local:8080/disk/2
+```
+
+**Sample resource data:**
+```json
+{
+  "disk_id": "0",
+  "model": "WDC WD40EFRX-68N32N0",
+  "serial": "WD-WCC7K1234567",
+  "capacity": "4000787030016",
+  "capacity_human": "4.0 TB",
+  "health": "GOOD",
+  "temperature": "38",
+  "temperature_unit": "C",
+  "smart_status": "PASSED",
+  "power_on_hours": "12456",
+  "firmware": "80.00A80"
+}
+```
+
+#### Volumes
+
+**URI Pattern:** `qnap://<host>:<port>/volume/<volume-id>`
+
+Access detailed storage usage, capacity, and volume status.
+
+**Example:**
+```
+qnap://10.1.1.241:8080/volume/0
+qnap://10.1.1.241:8080/volume/1
+qnap://nas.local:8080/volume/0
+```
+
+**Sample resource data:**
+```json
+{
+  "volume_id": "0",
+  "label": "DataVol1",
+  "total_size": "7999999999999",
+  "total_size_human": "7.27 TB",
+  "free_size": "3421234567890",
+  "free_size_human": "3.11 TB",
+  "used_size": "4578765432109",
+  "used_size_human": "4.16 TB",
+  "used_percent": "57.2",
+  "status": "Ready",
+  "filesystem": "ext4",
+  "raid_level": "RAID5",
+  "disk_count": "4"
+}
+```
+
+**Use cases:**
+- Storage capacity planning
+- Disk health monitoring
+- SMART status tracking
+- Temperature monitoring
+- RAID status verification
+
+## Resource Access Patterns
+
+### Direct Resource Access
+
+AI models can directly access resources using their URI:
+
+```
+Please check the health of disk 0 on the QNAP NAS
+→ Access: qnap://10.1.1.241:8080/disk/0
+
+What is the schema of the employees table?
+→ Access: oracle://HR/EMPLOYEES/schema
+
+Show me the status of ether1 interface
+→ Access: mikrotik://interface/ether1
+```
+
+### Resource Discovery
+
+Resources are typically discovered through:
+
+1. **Listing operations** (via tools like `mk-get`, database queries)
+2. **Reports** (via tools like `qnap-report`, `mk-report`)
+3. **Documentation** (this guide and server-specific docs)
+
+### Resource Monitoring
+
+Resources enable continuous monitoring:
+
+```python
+# Pseudo-code example
+while monitoring:
+    disk_health = access_resource("qnap://nas/disk/0")
+    if disk_health["temperature"] > 50:
+        alert("High disk temperature")
+    
+    volume_status = access_resource("qnap://nas/volume/0")
+    if volume_status["used_percent"] > 90:
+        alert("Low disk space")
+```
+
+## Best Practices
+
+### Resource Naming
+
+<Warning>
+Resource identifiers are case-sensitive. Use exact names as reported by the system.
+</Warning>
+
+```
+✓ oracle://HR/EMPLOYEES/schema
+✗ oracle://hr/employees/schema
+
+✓ mikrotik://interface/ether1
+✗ mikrotik://interface/Ether1
+```
+
+### Resource Caching
+
+<Note>
+Resource data represents real-time state. Cache appropriately based on your monitoring needs.
+</Note>
+
+- **Static metadata** (schemas, models): Cache for hours/days
+- **Dynamic state** (temperature, traffic): Cache for seconds/minutes
+- **Health status**: Cache for minutes
+
+### Error Handling
+
+Resources may be unavailable if:
+
+- Connection to the system is lost
+- Resource identifier is invalid
+- Permissions are insufficient
+- Resource has been deleted
+
+Always handle resource access errors gracefully.
+
+## Resource Comparison
+
+| Server | Protocol | Resource Types | Update Frequency | Use Case |
+|--------|----------|----------------|------------------|----------|
+| Oracle | `oracle://` | Table schemas | Static | Schema discovery |
+| MySQL | `mysql://` | Table schemas | Static | Schema discovery |
+| MikroTik | `mikrotik://` | Interfaces, bridges, routes | Real-time | Network monitoring |
+| QNAP | `qnap://` | Disks, volumes | Real-time | Storage monitoring |
+
+## Integration Examples
+
+### Multi-System Monitoring
+
+Combine resources from multiple systems:
+
+```
+# Check database and storage health
+1. oracle://HR/EMPLOYEES/schema → Verify table structure
+2. qnap://nas/volume/0 → Check database volume capacity
+3. qnap://nas/disk/0 → Verify disk health
+
+# Network and database coordination
+1. mikrotik://interface/ether1 → Check network connectivity
+2. mysql://mydb/users/schema → Access database schema
+```
+
+### Automated Health Checks
+
+```
+# Storage health check
+qnap://nas/disk/0 → temperature < 50°C
+qnap://nas/disk/1 → SMART status = PASSED
+qnap://nas/volume/0 → used_percent < 85%
+
+# Network health check
+mikrotik://interface/ether1 → running = true
+mikrotik://interface/ether2 → disabled = false
+mikrotik://route/400AF317 → active = true
+```
+
+### Infrastructure Documentation
+
+Generate documentation from resources:
+
+```
+# Database documentation
+List all tables → oracle://HR/*/schema
+Document each schema → Generate ERD
+
+# Network documentation
+List all interfaces → mikrotik://interface/*
+List all bridges → mikrotik://bridge/*
+Generate topology map
+
+# Storage documentation
+List all disks → qnap://nas/disk/*
+List all volumes → qnap://nas/volume/*
+Generate capacity report
+```

@@ -1,0 +1,140 @@
+---
+title: Everything
+description: Reference MCP server that demonstrates all protocol features including tools, resources, prompts, and sampling
+---
+
+The Everything server is a comprehensive reference implementation that exercises all features of the Model Context Protocol. It is designed as a test server for MCP client developers rather than for production use.
+
+## Overview
+
+This server showcases the complete range of MCP capabilities including prompts, tools, resources, sampling, and other protocol features. It provides a complete testing environment for client implementations.
+
+<Note>
+The Everything server is intended for testing and development purposes. It demonstrates protocol capabilities rather than providing production-ready functionality.
+</Note>
+
+## Installation
+
+### NPX
+
+Install the server using npx:
+
+```bash
+npm install -g @modelcontextprotocol/server-everything
+```
+
+Run the server:
+
+```bash
+npx @modelcontextprotocol/server-everything
+```
+
+## Configuration
+
+### Claude Desktop
+
+Add to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "everything": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-everything"
+      ]
+    }
+  }
+}
+```
+
+### VS Code
+
+Add to your MCP settings (`mcp.json`):
+
+```json
+{
+  "servers": {
+    "everything": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-everything"]
+    }
+  }
+}
+```
+
+## Transport Support
+
+The Everything server supports multiple transport protocols:
+
+### STDIO (Default)
+
+```bash
+npx @modelcontextprotocol/server-everything stdio
+```
+
+### HTTP with SSE
+
+```bash
+npx @modelcontextprotocol/server-everything sse
+```
+
+### Streamable HTTP
+
+```bash
+npx @modelcontextprotocol/server-everything streamableHttp
+```
+
+## Features
+
+The server implements comprehensive MCP features:
+
+- **Tools**: Complete tool registration and invocation patterns
+- **Resources**: Resource exposure and subscription mechanisms
+- **Prompts**: Prompt templates and dynamic generation
+- **Sampling**: Request sampling capabilities
+- **Logging**: Server-side logging demonstrations
+- **Multiple transports**: STDIO, SSE, and Streamable HTTP support
+
+<Info>
+For a complete list of registered primitives and protocol features, refer to the Server Features documentation in the source repository.
+</Info>
+
+## Development
+
+### Running from Source
+
+```bash
+cd src/everything
+npm install
+npm run build
+```
+
+Run with specific transport:
+
+```bash
+npm run start:stdio
+npm run start:sse
+npm run start:streamableHttp
+```
+
+### Docker
+
+Build and run with Docker:
+
+```json
+{
+  "mcpServers": {
+    "everything": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "mcp/everything"
+      ]
+    }
+  }
+}
+```

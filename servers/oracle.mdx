@@ -1,0 +1,262 @@
+---
+title: Oracle Database
+description: Connect Claude to Oracle Database with read-only access for schema inspection, query execution, and performance analysis
+---
+
+A Model Context Protocol server that provides read-only access to Oracle Database. This server enables LLMs to inspect database schemas, execute and explain read-only queries, and analyze performance with AWR reports.
+
+<Note>
+All queries are executed within a READ ONLY transaction to ensure database safety.
+</Note>
+
+## Installation
+
+<CodeGroup>
+
+```bash Docker
+docker build -t mochoa/mcp-oracle -f src/oracle/Dockerfile .
+```
+
+```bash NPM
+npm install @marcelo-ochoa/server-oracle
+```
+
+</CodeGroup>
+
+## Configuration
+
+### Environment Variables
+
+The Oracle server uses environment variables or the `orcl-connect` tool for secure credential management:
+
+- `ORACLE_USER`: Oracle username (optional if using `orcl-connect`)
+- `ORACLE_PASSWORD`: Oracle password (optional if using `orcl-connect`)
+
+### Connection String
+
+The connection string should contain only the host, port, and service/SID information (without embedded credentials). Providing it as a command-line argument is **optional**. If omitted at startup, you must use the `orcl-connect` tool to establish a connection before using other functionality.
+
+**Supported connection string formats:**
+- `host:port/service_name`
+- `host:port:SID`
+
+## Usage
+
+### Claude Desktop
+
+<Steps>
+
+<Step title="Locate your Claude Desktop config file">
+
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+
+</Step>
+
+<Step title="Add the Oracle MCP server configuration">
+
+<CodeGroup>
+
+```json Docker
+{
+  "mcpServers": {
+    "oracle": {
+      "command": "docker",
+      "args": [
+        "run", 
+        "-i", 
+        "--rm",
+        "-e", "ORACLE_USER=myuser",
+        "-e", "ORACLE_PASSWORD=mypassword",
+        "mochoa/mcp-oracle",
+        "host.docker.internal:1521/freepdb1"
+      ]
+    }
+  }
+}
+```
+
+</CodeGroup>
+
+<Note>
+When running Docker on macOS, use `host.docker.internal` if the Oracle Database is running on the host network (e.g., localhost).
+</Note>
+
+</Step>
+
+<Step title="Restart Claude Desktop">
+
+Restart Claude Desktop to load the new configuration.
+
+</Step>
+
+</Steps>
+
+### VS Code
+
+Add this configuration to your VS Code User Settings (JSON) or `.vscode/mcp.json`:
+
+<Note>
+The `mcp` key is not needed in the `.vscode/mcp.json` file.
+</Note>
+
+```json
+{
+  "mcp": {
+    "inputs": [
+      {
+        "type": "promptString",
+        "id": "oracle_user",
+        "description": "Oracle username"
+      },
+      {
+        "type": "promptString",
+        "id": "oracle_password",
+        "description": "Oracle password",
+        "password": true
+      }
+    ],
+    "servers": {
+      "oracle": {
+        "command": "docker",
+        "args": [
+          "run",
+          "-i",
+          "--rm",
+          "-e", "ORACLE_USER=${input:oracle_user}",
+          "-e", "ORACLE_PASSWORD=${input:oracle_password}",
+          "mochoa/mcp-oracle",
+          "host.docker.internal:1521/freepdb1"
+        ]
+      }
+    }
+  }
+}
+```
+
+## Features
+
+### Tools
+
+#### orcl-query
+
+Execute read-only SQL queries against the connected Oracle Database.
+
+**Input:**
+- `sql` (string): The SQL query to execute
+
+**Example:**
+```sql
+SELECT * FROM employees WHERE department_id = 10
+```
+
+<Note>
+All queries are executed within a READ ONLY transaction.
+</Note>
+
+#### orcl-explain
+
+Explain plan SQL queries against the connected Oracle Database.
+
+**Input:**
+- `sql` (string): The SQL query to explain
+
+<Warning>
+Requires `GRANT SELECT_CATALOG_ROLE TO your_user;`
+</Warning>
+
+#### orcl-stats
+
+Get statistics for a given table on current connected schema.
+
+**Input:**
+- `name` (string): The table name
+
+**Note:** Table owner is equal to USER SQL function returning value.
+
+#### orcl-connect
+
+Reconnect using new credentials.
+
+**Inputs:**
+- `connectionString` (string): SQLNet connect string (e.g., `host.docker.internal:1521/freepdb1`)
+- `user` (string): Username (e.g., `scott`)
+- `password` (string): Password (e.g., `tiger`)
+
+**Example:**
+```
+orcl-connect host.docker.internal:1521/freepdb1 hr hr_2025
+```
+
+#### orcl-awr
+
+Generate Automatic Workload Repository (AWR) reports.
+
+**Input:**
+- `sql_id` (string, optional): SQL id to get the AWR report for a specific query. If null, returns the full last generated AWR report.
+
+<Warning>
+Requires `SELECT_CATALOG_ROLE` and `GRANT EXECUTE ON DBMS_WORKLOAD_REPOSITORY` package.
+</Warning>
+
+### Resources
+
+The server provides schema information for each table in the Oracle Database current connected user:
+
+**Table Schemas** (`oracle://USER/<table>/schema`)
+- JSON schema information for each table
+- Includes column names and data types
+- Automatically discovered from Oracle Database metadata
+
+## Example Prompts
+
+- "Connect to host.docker.internal:1521/freepdb1 using hr as user and hr_2025 as password"
+- "Show me all tables in the current schema"
+- "Query the employees table and show me the first 10 rows"
+- "Explain the execution plan for SELECT * FROM orders WHERE order_date > SYSDATE - 7"
+- "Get statistics for the customers table"
+- "Generate an AWR report for the last snapshot"
+- "Show me the AWR report for SQL_ID abc123xyz"
+
+## Additional Resources
+
+- [Change Log](https://github.com/marcelo-ochoa/servers/blob/main/src/oracle/CHANGELOG.md)
+- [Demos](https://github.com/marcelo-ochoa/servers/blob/main/src/oracle/Demos.md) - Usage examples with Claude Desktop, Docker AI, Gemini CLI, and Antigravity Code Editor
+- [Oracle AWR in Action](https://github.com/marcelo-ochoa/servers/blob/main/src/oracle/AWR_example.md) - Example AWR report and analysis
+- [GitHub Repository](https://github.com/marcelo-ochoa/servers)
+
+## Comparison with SQLcl MCP Server
+
+You can also use the SQLcl Docker extension as an alternative. Register a connection using:
+
+```bash
+docker exec --user sqlcl -ti mochoa_sqlcl-docker-extension-desktop-extension-service /opt/sqlcl/bin/sql -save hr_mcp -savepwd hr/hr_2025@host.docker.internal:1521/freepdb1
+```
+
+Then configure:
+
+```json
+{
+  "mcpServers": {
+    "sqlcl-mcp-server": {
+      "type": "stdio",
+      "command": "docker",
+      "args": [
+        "exec",
+        "--user",
+        "sqlcl",
+        "-i",
+        "mochoa_sqlcl-docker-extension-desktop-extension-service",
+        "/opt/sqlcl/bin/sql",
+        "-mcp"
+      ]
+    }
+  }
+}
+```
+
+Replace `orcl-query` tool with `run-sql` in your prompts.
+
+## License
+
+This project is licensed under the Apache License, Version 2.0 for new contributions, with existing code under MIT - see the [LICENSE](https://github.com/marcelo-ochoa/servers/blob/main/src/oracle/LICENSE) file for details.

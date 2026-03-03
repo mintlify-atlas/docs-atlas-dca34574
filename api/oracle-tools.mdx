@@ -1,0 +1,255 @@
+---
+title: Oracle Database Tools
+description: API reference for MCP Oracle Database server tools - query execution, explain plans, table statistics, connection management, and AWR reports
+---
+
+The Oracle Database MCP server provides read-only access to Oracle databases, enabling LLMs to inspect schemas, execute queries, and analyze performance.
+
+## orcl-query
+
+Execute read-only SQL queries against the connected Oracle Database.
+
+<ParamField path="sql" type="string" required>
+  The SQL query to execute
+</ParamField>
+
+<Note>
+  All queries are executed within a READ ONLY transaction for safety.
+</Note>
+
+### Example Usage
+
+```sql
+SELECT employee_id, first_name, last_name, salary 
+FROM employees 
+WHERE department_id = 10
+```
+
+### Response
+
+Returns query results as a JSON array of row objects:
+
+```json
+[
+  {
+    "EMPLOYEE_ID": 200,
+    "FIRST_NAME": "Jennifer",
+    "LAST_NAME": "Whalen",
+    "SALARY": 4400
+  }
+]
+```
+
+## orcl-explain
+
+Generate execution plan for SQL queries against the connected Oracle Database.
+
+<ParamField path="sql" type="string" required>
+  The SQL query to explain
+</ParamField>
+
+<Warning>
+  Requires `GRANT SELECT_CATALOG_ROLE TO your_user;` privilege to access execution plan information.
+</Warning>
+
+### Example Usage
+
+```sql
+SELECT * FROM employees WHERE department_id = 10
+```
+
+### Response
+
+Returns the Oracle execution plan showing access paths, join methods, and cost estimates:
+
+```
+----------------------------------------------------------------------------------
+| Id  | Operation         | Name      | Rows  | Bytes | Cost (%CPU)| Time     |
+----------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT  |           |     1 |    69 |     2   (0)| 00:00:01 |
+|*  1 |  TABLE ACCESS FULL| EMPLOYEES |     1 |    69 |     2   (0)| 00:00:01 |
+----------------------------------------------------------------------------------
+```
+
+## orcl-stats
+
+Get comprehensive statistics for a table in the current connected schema.
+
+<ParamField path="name" type="string" required>
+  The table name to retrieve statistics for
+</ParamField>
+
+<Note>
+  Table owner is determined by the USER SQL function (current schema).
+</Note>
+
+### Example Usage
+
+```
+orcl-stats employees
+```
+
+### Response
+
+Returns detailed table statistics including:
+
+```json
+{
+  "num_rows": 107,
+  "blocks": 5,
+  "avg_row_len": 69,
+  "last_analyzed": "2025-03-01T10:30:00Z",
+  "compression": "DISABLED",
+  "tablespace_name": "USERS"
+}
+```
+
+## orcl-connect
+
+Establish or reconnect to an Oracle database with new credentials.
+
+<ParamField path="connectionString" type="string" required>
+  SQLNet connect string in format `host:port/service_name` or `host:port:SID`
+</ParamField>
+
+<ParamField path="user" type="string" required>
+  Oracle database username
+</ParamField>
+
+<ParamField path="password" type="string" required>
+  Oracle database password
+</ParamField>
+
+### Example Usage
+
+```
+orcl-connect host.docker.internal:1521/freepdb1 hr hr_2025
+```
+
+### Supported Connection Formats
+
+- `host:port/service_name` - Connect using service name
+- `host:port:SID` - Connect using SID
+
+<Note>
+  When using Docker on macOS, use `host.docker.internal` to connect to databases running on localhost.
+</Note>
+
+### Response
+
+```json
+{
+  "success": true,
+  "message": "Connected to Oracle database",
+  "user": "hr",
+  "database": "freepdb1"
+}
+```
+
+## orcl-awr
+
+Generate Automatic Workload Repository (AWR) reports for performance analysis.
+
+<ParamField path="sql_id" type="string">
+  Optional SQL ID to generate an AWR report for a specific query. If omitted, returns the full last generated AWR report.
+</ParamField>
+
+<Warning>
+  Requires both:
+  - `SELECT_CATALOG_ROLE` privilege
+  - `GRANT EXECUTE ON DBMS_WORKLOAD_REPOSITORY` package
+</Warning>
+
+### Example Usage
+
+**Full AWR Report:**
+```
+orcl-awr
+```
+
+**Query-Specific Report:**
+```
+orcl-awr 8vfzq9x2m5kdn
+```
+
+### Response
+
+Returns a comprehensive performance report including:
+
+- Database instance information
+- Top SQL statements by elapsed time, CPU time, and executions
+- Wait events and their impact
+- Memory and I/O statistics
+- System resource utilization
+- Recommendations for optimization
+
+```
+AUTOMATIC WORKLOAD REPOSITORY REPORT
+
+DB Name         DB Id    Instance     Inst Num Startup Time    Release
+------------ ----------- ------------ -------- --------------- -----------
+FREEPDB1        123456789 freepdb1            1 01-Mar-25 08:00 19.0.0.0.0
+
+Top SQL by Elapsed Time
+------------------------------------------------------------------------------
+Elapsed Time (s) | Executions | SQL ID        | SQL Text
+------------------------------------------------------------------------------
+        125.4    |        450 | 8vfzq9x2m5kdn | SELECT * FROM large_table...
+         89.2    |      1,200 | fg3h7j9k1m2np | UPDATE inventory SET...
+```
+
+## Resources
+
+The server automatically provides schema information for all tables in the current user's schema:
+
+### Table Schemas
+
+**URI Format:** `oracle://USER/<table>/schema`
+
+Returns JSON schema information including:
+- Column names and data types
+- Constraints and indexes
+- Automatically discovered from Oracle metadata
+
+```json
+{
+  "table_name": "EMPLOYEES",
+  "columns": [
+    {
+      "name": "EMPLOYEE_ID",
+      "type": "NUMBER",
+      "nullable": false,
+      "primary_key": true
+    },
+    {
+      "name": "FIRST_NAME",
+      "type": "VARCHAR2(20)",
+      "nullable": true
+    },
+    {
+      "name": "SALARY",
+      "type": "NUMBER(8,2)",
+      "nullable": true
+    }
+  ]
+}
+```
+
+## Configuration
+
+The Oracle server supports two methods for credential management:
+
+### Environment Variables
+
+```bash
+export ORACLE_USER=myuser
+export ORACLE_PASSWORD=mypassword
+```
+
+### Runtime Connection
+
+Use the `orcl-connect` tool to establish connections dynamically without environment variables.
+
+<Note>
+  Connection strings should contain only host, port, and service/SID information. Credentials are always passed separately via environment variables or the connect tool.
+</Note>

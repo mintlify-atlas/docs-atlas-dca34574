@@ -1,0 +1,331 @@
+---
+title: MySQL
+description: Connect Claude to MySQL databases with read-only access for schema inspection, query execution, and performance analysis
+---
+
+A Model Context Protocol server that provides read-only access to MySQL databases. This server enables LLMs to inspect database schemas, execute and explain read-only queries, and analyze performance metrics.
+
+<Note>
+All queries are executed within a READ ONLY transaction to ensure database safety.
+</Note>
+
+## Installation
+
+<CodeGroup>
+
+```bash Docker
+docker build -t mochoa/mcp-mysql -f src/mysql/Dockerfile .
+```
+
+```bash NPM
+npm install @marcelo-ochoa/server-mysql
+```
+
+</CodeGroup>
+
+## Configuration
+
+### Environment Variables
+
+The MySQL server uses environment variables or the `mysql-connect` tool for secure credential management:
+
+- `MYSQL_USER`: MySQL username (optional if using `mysql-connect`)
+- `MYSQL_PASSWORD`: MySQL password (optional if using `mysql-connect`)
+
+### Connection String
+
+The connection string should contain only the host, port, and database information (without embedded credentials). Providing it as a command-line argument is **optional**. If omitted at startup, you must use the `mysql-connect` tool to establish a connection before using other functionality.
+
+**Supported connection string formats:**
+- `mysql://host:port/dbname`
+- `host:port/dbname`
+
+## Usage
+
+### Claude Desktop
+
+<Steps>
+
+<Step title="Locate your Claude Desktop config file">
+
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+
+</Step>
+
+<Step title="Add the MySQL MCP server configuration">
+
+<CodeGroup>
+
+```json Docker
+{
+  "mcpServers": {
+    "mysql": {
+      "command": "docker",
+      "args": [
+        "run", 
+        "-i", 
+        "--rm",
+        "-e", "MYSQL_USER=myuser",
+        "-e", "MYSQL_PASSWORD=mypassword",
+        "mochoa/mcp-mysql",
+        "host.docker.internal:3306/mydb"
+      ]
+    }
+  }
+}
+```
+
+```json NPX
+{
+  "mcpServers": {
+    "mysql": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@marcelo-ochoa/server-mysql"
+      ],
+      "env": {
+        "MYSQL_USER": "myuser",
+        "MYSQL_PASSWORD": "mypassword"
+      }
+    }
+  }
+}
+```
+
+</CodeGroup>
+
+<Note>
+When running Docker on macOS and connecting to MySQL on your host machine, use `host.docker.internal` instead of `localhost`.
+</Note>
+
+<Warning>
+Replace the following placeholders with your actual values:
+- `myuser` and `mypassword` with your MySQL credentials
+- `localhost:3306` with your MySQL server host and port
+- `mydb` with your database name
+</Warning>
+
+</Step>
+
+<Step title="Restart Claude Desktop">
+
+Restart Claude Desktop to load the new configuration.
+
+</Step>
+
+</Steps>
+
+### VS Code
+
+Add this configuration to your VS Code User Settings (JSON) or `.vscode/mcp.json`:
+
+<Note>
+The `mcp` key is not needed in the `.vscode/mcp.json` file.
+</Note>
+
+<CodeGroup>
+
+```json Docker
+{
+  "mcp": {
+    "inputs": [
+      {
+        "type": "promptString",
+        "id": "mysql_user",
+        "description": "MySQL username"
+      },
+      {
+        "type": "promptString",
+        "id": "mysql_password",
+        "description": "MySQL password",
+        "password": true
+      }
+    ],
+    "servers": {
+      "mysql": {
+        "command": "docker",
+        "args": [
+          "run",
+          "-i",
+          "--rm",
+          "-e", "MYSQL_USER=${input:mysql_user}",
+          "-e", "MYSQL_PASSWORD=${input:mysql_password}",
+          "mochoa/mcp-mysql",
+          "host.docker.internal:3306/mydb"
+        ]
+      }
+    }
+  }
+}
+```
+
+```json NPX
+{
+  "mcp": {
+    "inputs": [
+      {
+        "type": "promptString",
+        "id": "mysql_user",
+        "description": "MySQL username"
+      },
+      {
+        "type": "promptString",
+        "id": "mysql_password",
+        "description": "MySQL password",
+        "password": true
+      }
+    ],
+    "servers": {
+      "mysql": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "@marcelo-ochoa/server-mysql"
+        ],
+        "env": {
+          "MYSQL_USER": "${input:mysql_user}",
+          "MYSQL_PASSWORD": "${input:mysql_password}"
+        }
+      }
+    }
+  }
+}
+```
+
+</CodeGroup>
+
+<Note>
+When using Docker and connecting to MySQL on your host machine, use `host.docker.internal` instead of `localhost` in the connection URL.
+</Note>
+
+### Antigravity Code Editor
+
+Add this configuration to `~/.gemini/antigravity/mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "mysql": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "MYSQL_USER=myuser",
+        "-e",
+        "MYSQL_PASSWORD=mypassword",
+        "mochoa/mcp-mysql",
+        "host.docker.internal:3306/mydb"
+      ]
+    }
+  },
+  "inputs": []
+}
+```
+
+## Features
+
+### Tools
+
+#### mysql-query
+
+Execute read-only SQL queries against the connected MySQL database.
+
+**Input:**
+- `sql` (string): The SQL query to execute
+
+**Example:**
+```sql
+SELECT * FROM users WHERE created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)
+```
+
+<Note>
+All queries are executed within a READ ONLY transaction.
+</Note>
+
+#### mysql-explain
+
+Explain plan SQL queries against the connected MySQL database.
+
+**Input:**
+- `sql` (string): The SQL query to explain
+
+**Returns:** Execution plan in JSON format
+
+#### mysql-stats
+
+Get statistics for a given table in the current connected database.
+
+**Input:**
+- `name` (string): The table name
+
+**Returns:** Comprehensive table, index, and column statistics
+
+#### mysql-connect
+
+Reconnect using new credentials.
+
+**Inputs:**
+- `connectionString` (string): MySQL connect string (e.g., `host.docker.internal:3306/mydb`)
+- `user` (string): Username (e.g., `root`)
+- `password` (string): Password
+
+**Example:**
+```
+mysql-connect host.docker.internal:3306/hr root my_2025
+```
+
+#### mysql-awr
+
+Generate a MySQL performance report similar to Oracle AWR.
+
+**Includes:**
+- Database statistics
+- InnoDB metrics
+- Top queries (requires `performance_schema`)
+- Table/index statistics
+- Connection info
+- Optimization recommendations
+
+<Warning>
+For optimal performance monitoring with the `mysql-awr` tool, ensure that the Performance Schema is enabled in your MySQL configuration:
+
+```ini
+[mysqld]
+performance_schema = ON
+```
+
+The Performance Schema provides detailed query statistics and performance metrics. If it's not enabled, the AWR report will still generate but with limited query-level statistics.
+</Warning>
+
+### Resources
+
+The server provides schema information for each table in the MySQL database:
+
+**Table Schemas** (`mysql://<database>/<table>/schema`)
+- JSON schema information for each table
+- Includes column names and data types
+- Automatically discovered from MySQL database metadata
+
+## Example Prompts
+
+- "Connect to host.docker.internal:3306/mydb using root as user and password123 as password using mysql mcp server"
+- "Query all tables in the current database"
+- "Get stats for the `users` table"
+- "Explain the execution plan for: SELECT * FROM users WHERE email = 'test@example.com'"
+- "Generate a performance report using mysql-awr"
+- "Based on the AWR report, what optimizations would you recommend?"
+
+## Additional Resources
+
+- [Change Log](https://github.com/marcelo-ochoa/servers/blob/main/src/mysql/CHANGELOG.md)
+- [Demos](https://github.com/marcelo-ochoa/servers/blob/main/src/mysql/Demos.md) - Usage examples with Claude Desktop, Docker AI, Gemini CLI, and Antigravity Code Editor
+- [MySQL AWR in Action](https://github.com/marcelo-ochoa/servers/blob/main/src/mysql/AWR_example.md) - Example performance report with optimization opportunities
+- [GitHub Repository](https://github.com/marcelo-ochoa/servers)
+
+## License
+
+This project is licensed under the Apache License, Version 2.0 for new contributions, with existing code under MIT - see the [LICENSE](https://github.com/marcelo-ochoa/servers/blob/main/src/mysql/LICENSE) file for details.

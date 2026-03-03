@@ -1,0 +1,233 @@
+---
+title: Memory
+description: Knowledge graph-based persistent memory server enabling LLMs to remember information across conversations
+---
+
+The Memory server provides persistent memory capabilities through a local knowledge graph implementation. It enables Claude to retain and recall information about users across multiple chat sessions.
+
+## Overview
+
+This server implements a knowledge graph storage system with entities, relations, and observations. Information persists across conversations, allowing for contextual continuity and personalized interactions.
+
+## Core Concepts
+
+### Entities
+
+Entities are the primary nodes in the knowledge graph. Each entity has:
+
+- **Name**: Unique identifier (e.g., `John_Smith`)
+- **Entity Type**: Classification (e.g., `person`, `organization`, `event`)
+- **Observations**: List of facts about the entity
+
+Example:
+```json
+{
+  "name": "John_Smith",
+  "entityType": "person",
+  "observations": ["Speaks fluent Spanish"]
+}
+```
+
+### Relations
+
+Relations define directed connections between entities in active voice:
+
+```json
+{
+  "from": "John_Smith",
+  "to": "Anthropic",
+  "relationType": "works_at"
+}
+```
+
+### Observations
+
+Observations are discrete, atomic facts about entities:
+
+- Stored as strings
+- Attached to specific entities
+- Can be added or removed independently
+- Should contain one fact per observation
+
+## Installation
+
+### NPX
+
+```bash
+npx -y @modelcontextprotocol/server-memory
+```
+
+### Docker
+
+```bash
+docker run -i -v claude-memory:/app/dist --rm mcp/memory
+```
+
+## Configuration
+
+### Claude Desktop
+
+Add to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "memory": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ]
+    }
+  }
+}
+```
+
+With custom memory file path:
+
+```json
+{
+  "mcpServers": {
+    "memory": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ],
+      "env": {
+        "MEMORY_FILE_PATH": "/path/to/custom/memory.jsonl"
+      }
+    }
+  }
+}
+```
+
+### VS Code
+
+Add to your MCP settings (`mcp.json`):
+
+```json
+{
+  "servers": {
+    "memory": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ]
+    }
+  }
+}
+```
+
+## Tools
+
+### create_entities
+
+Create multiple new entities in the knowledge graph.
+
+**Input:**
+- `entities` (array): List of entity objects with `name`, `entityType`, and `observations`
+
+### create_relations
+
+Create multiple new relations between entities.
+
+**Input:**
+- `relations` (array): List of relation objects with `from`, `to`, and `relationType`
+
+### add_observations
+
+Add new observations to existing entities.
+
+**Input:**
+- `observations` (array): List of objects with `entityName` and `contents` array
+
+### delete_entities
+
+Remove entities and their associated relations.
+
+**Input:**
+- `entityNames` (string[]): List of entity names to delete
+
+### delete_observations
+
+Remove specific observations from entities.
+
+**Input:**
+- `deletions` (array): Objects with `entityName` and `observations` to remove
+
+### delete_relations
+
+Remove specific relations from the graph.
+
+**Input:**
+- `relations` (array): Objects with `from`, `to`, and `relationType`
+
+### read_graph
+
+Read the entire knowledge graph structure.
+
+**Returns:** Complete graph with all entities and relations
+
+### search_nodes
+
+Search for nodes based on a query string.
+
+**Input:**
+- `query` (string): Search across entity names, types, and observations
+
+**Returns:** Matching entities and their relations
+
+### open_nodes
+
+Retrieve specific nodes by name.
+
+**Input:**
+- `names` (string[]): List of entity names to retrieve
+
+**Returns:** Requested entities and relations between them
+
+## Environment Variables
+
+- `MEMORY_FILE_PATH`: Path to the memory storage JSONL file (default: `memory.jsonl` in server directory)
+
+<Note>
+The memory file stores all knowledge graph data in JSONL format. Ensure this file is backed up to prevent data loss.
+</Note>
+
+## Usage Example
+
+For chat personalization, you can use this prompt in Claude.ai Project Custom Instructions:
+
+```
+Follow these steps for each interaction:
+
+1. User Identification:
+   - Assume you are interacting with default_user
+   - If you have not identified default_user, proactively try to do so
+
+2. Memory Retrieval:
+   - Begin by saying "Remembering..." and retrieve relevant information
+   - Refer to your knowledge graph as your "memory"
+
+3. Memory Categories:
+   - Basic Identity (age, gender, location, job, education)
+   - Behaviors (interests, habits)
+   - Preferences (communication style, language)
+   - Goals (targets, aspirations)
+   - Relationships (personal and professional)
+
+4. Memory Update:
+   - Create entities for recurring organizations, people, and events
+   - Connect them using relations
+   - Store facts as observations
+```
+
+## Building
+
+Docker build:
+
+```bash
+docker build -t mcp/memory -f src/memory/Dockerfile .
+```
