@@ -1,0 +1,106 @@
+{
+  "projectType": "sdk-library",
+  "projectName": "MCP Servers",
+  "projectDescription": "A collection of Model Context Protocol server implementations for databases and infrastructure management.",
+  "theme": "aspen",
+  "primaryColor": "#0066CC",
+  "lightColor": "#3399FF",
+  "darkColor": "#004499",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Database Servers",
+            "pages": [
+              "servers/oracle",
+              "servers/postgres",
+              "servers/mysql"
+            ]
+          },
+          {
+            "group": "Infrastructure Servers",
+            "pages": [
+              "servers/mikrotik",
+              "servers/qnap"
+            ]
+          },
+          {
+            "group": "Reference Servers",
+            "pages": [
+              "servers/everything",
+              "servers/memory",
+              "servers/filesystem",
+              "servers/sequential-thinking",
+              "servers/time"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/configuration",
+              "guides/docker",
+              "guides/security",
+              "guides/troubleshooting"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Database Tools",
+            "pages": [
+              "api/oracle-tools",
+              "api/postgres-tools",
+              "api/mysql-tools"
+            ]
+          },
+          {
+            "group": "Infrastructure Tools",
+            "pages": [
+              "api/mikrotik-tools",
+              "api/qnap-tools"
+            ]
+          },
+          {
+            "group": "Resources",
+            "pages": [
+              "api/resources"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Database MCP Servers for Oracle, PostgreSQL, and MySQL",
+    "Infrastructure management for MikroTik routers and QNAP NAS",
+    "Read-only query execution with automatic transaction management",
+    "Performance monitoring with AWR-style reports",
+    "Schema inspection and query explanation",
+    "Docker and NPM deployment support",
+    "Integration with Claude Desktop, VS Code, and other MCP clients"
+  ],
+  "publicApiSurface": [
+    "@marcelo-ochoa/server-oracle",
+    "@marcelo-ochoa/server-postgres",
+    "@marcelo-ochoa/server-mysql",
+    "@marcelo-ochoa/server-mikrotik",
+    "@marcelo-ochoa/server-qnap",
+    "@modelcontextprotocol/server-everything",
+    "@modelcontextprotocol/server-memory",
+    "@modelcontextprotocol/server-filesystem",
+    "@modelcontextprotocol/server-sequential-thinking"
+  ]
+}
